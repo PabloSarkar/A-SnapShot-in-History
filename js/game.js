@@ -12,8 +12,9 @@
   var PLACEHOLDER_SRC = './assets/placeholder.svg';
 
   // Where photos come from, in order:
-  //   1. js/photos.js (or ./data/photos.json): pre-built from Wikidata +
-  //      Commons by scripts/build-photos.js. Loads instantly; this is the main source.
+  //   1. The photo catalogue in data/photos/ (built from Wikimedia Commons by
+  //      scripts/build-photos.js, using when and where each photo was taken).
+  //      Loads instantly; this is the main source.
   //   2. Live Wikidata queries (js/wikidata-rounds.js), only if enabled below.
   //      Off by default because each query takes ~10–60 s.
   //   3. The embedded entries in js/data.js, as a last resort.
@@ -69,7 +70,8 @@
         lng: Number(p.lng),
         actual_year: clamp(Math.round(Number(p.actual_year)), YEAR_MIN, YEAR_MAX),
         description: p.description || 'Untitled photograph',
-        source_url: typeof p.source_url === 'string' && /^https:\/\//.test(p.source_url) ? p.source_url : ''
+        source_url: typeof p.source_url === 'string' && /^https:\/\//.test(p.source_url) ? p.source_url : '',
+        credit: typeof p.credit === 'string' ? p.credit : ''
       };
     });
   }
@@ -397,30 +399,75 @@
   }
 
   // ============================================================ GAME FLOW
-  var builtPhotos = null; // promise for photos.json, fetched once
   var playedIds = Object.create(null);
 
-  function loadBuiltPhotos() {
-    if (!builtPhotos) {
-      // Preferred: js/photos.js (a plain script, works everywhere, even file://).
-      if (Array.isArray(window.SNAPSHOT_PHOTOS) && window.SNAPSHOT_PHOTOS.length) {
-        builtPhotos = Promise.resolve(validPhotos(window.SNAPSHOT_PHOTOS));
-        return builtPhotos;
-      }
-      // Fallback: the same list as JSON.
-      builtPhotos = fetch(PHOTOS_JSON, { cache: 'no-cache' })
-        .then(function (res) {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        })
-        .then(function (json) { return validPhotos(Array.isArray(json) ? json : json.photos); })
-        .catch(function (err) {
-          console.warn('Could not load the photo list; using the embedded set.', err);
-          builtPhotos = null; // try again next match
-          return [];
-        });
+  /* ---- Photo catalogue -----------------------------------------------------
+   * scripts/build-photos.js writes data/photos/manifest.js plus shards of 200
+   * photos (data/photos/shard-NNN.js). Shards are plain <script>s rather than
+   * JSON so they load even from file://. A couple of random shards load per
+   * match, so thousands of photos never have to be downloaded up front.
+   * ---------------------------------------------------------------------- */
+  var SHARDS_PER_LOAD = 2;
+  var shardLoads = {}; // shard index -> Promise<array>
+
+  function loadShard(i) {
+    if (!shardLoads[i]) {
+      var manifest = window.SNAPSHOT_MANIFEST;
+      shardLoads[i] = new Promise(function (resolve) {
+        var done = function () {
+          var data = window.SNAPSHOT_SHARDS && window.SNAPSHOT_SHARDS[i];
+          if (!Array.isArray(data)) delete shardLoads[i]; // allow a retry later
+          resolve(Array.isArray(data) ? data : []);
+        };
+        var tag = document.createElement('script');
+        tag.src = manifest.path.replace('{n}', String(i).padStart(3, '0'));
+        tag.async = true;
+        tag.onload = done;
+        tag.onerror = done;
+        document.head.appendChild(tag);
+      });
     }
-    return builtPhotos;
+    return shardLoads[i];
+  }
+
+  var loadedPhotos = []; // every photo from the shards loaded so far
+
+  function unplayedCount() {
+    return loadedPhotos.filter(function (p) { return !playedIds[p.id]; }).length;
+  }
+
+  /**
+   * Return every photo loaded so far, first loading SHARDS_PER_LOAD more
+   * random shards if fewer than 50 unplayed photos are left.
+   */
+  function loadBuiltPhotos() {
+    var manifest = window.SNAPSHOT_MANIFEST;
+    if (manifest && manifest.shards > 0 && manifest.path) {
+      var pending = Object.keys(shardLoads).map(function (k) { return shardLoads[k]; });
+      return Promise.all(pending).then(function () {
+        if (unplayedCount() >= 50) return null;
+        var unloaded = [];
+        for (var i = 0; i < manifest.shards; i++) if (!shardLoads[i]) unloaded.push(i);
+        return Promise.all(shuffle(unloaded).slice(0, SHARDS_PER_LOAD).map(loadShard));
+      }).then(function () {
+        var all = Object.keys(shardLoads).map(function (k) { return shardLoads[k]; });
+        return Promise.all(all);
+      }).then(function (lists) {
+        loadedPhotos = validPhotos([].concat.apply([], lists));
+        return loadedPhotos;
+      });
+    }
+    // No manifest (e.g. the shard files weren't deployed): try the JSON catalogue.
+    return fetch(PHOTOS_JSON, { cache: 'no-cache' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (json) { return validPhotos(Array.isArray(json) ? json : json.photos); })
+      .catch(function (err) {
+        console.warn('Could not load the photo catalogue; using the embedded set.', err);
+        return [];
+      });
   }
 
   function loadLivePhotos() {
@@ -554,7 +601,10 @@
     el.resTime.textContent = fmt(result.timeScore);
     el.resDesc.textContent = photo.description;
     el.resCredit.hidden = !photo.source_url;
-    if (photo.source_url) el.resCredit.href = photo.source_url;
+    if (photo.source_url) {
+      el.resCredit.href = photo.source_url;
+      el.resCredit.textContent = (photo.credit ? 'Photo: ' + photo.credit : 'Photo & licence') + ' · Wikimedia Commons ↗';
+    }
     el.next.textContent = state.round + 1 >= state.photos.length ? 'See results' : 'Next round';
 
     el.guessControls.classList.add('hidden');
