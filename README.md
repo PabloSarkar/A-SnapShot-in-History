@@ -71,6 +71,8 @@ Then open http://localhost:8000.
 
 All asset paths are relative (`./`), and `_headers` sets basic security and cache headers.
 
+**Caching:** `_headers` makes browsers check for a newer copy of CSS, JS and photo data on every visit, so a new deploy never shows new pages with old styles. The `?v=…` on each stylesheet and script link in the HTML pages forces a fresh download after a change. If you edit CSS or JS, bump that value in `index.html`, `signin.html` and `snapshot.html`.
+
 ## Scoring
 
 | Part | Max | Rule |

@@ -7,8 +7,13 @@
 /assets/*
   Cache-Control: public, max-age=604800
 
+# CSS/JS: browsers must check for a newer copy on every visit (a cheap 304
+# when unchanged), so a deploy never pairs new HTML with stale styles.
 /js/*
-  Cache-Control: public, max-age=3600, must-revalidate
+  Cache-Control: no-cache
 
 /css/*
-  Cache-Control: public, max-age=3600, must-revalidate
+  Cache-Control: no-cache
+
+/data/*
+  Cache-Control: no-cache
