@@ -92,6 +92,25 @@ There are five rounds, with 25 seconds each to tap a named place on a blank 3D g
   ```
 - **Controls:** drag to spin, scroll or pinch to zoom, and tap or click to guess.
 
+## Outline
+
+Outline is at **`/outline`** (`outline.html`). You name the country from its silhouette in six guesses. Each wrong guess shows the distance between the two countries' centre points (Haversine), an arrow pointing from your guess towards the answer, and how close you are as a percentage. The continent is revealed after three guesses. Like Pinpoint, it has a **Daily challenge** (the same country for everyone each UTC day, one attempt, resumable) and unlimited **Practice**.
+
+- **Country data:** `js/outline-countries.js`, 195 countries (the 193 UN members plus Vatican City and Palestine), with `name.common`, `latlng`, `cca2` and the continent.
+  - It comes from [mledoze/countries](https://github.com/mledoze/countries) (ODbL), the dataset REST Countries is built on.
+  - **Why it isn't fetched live:** REST Countries' v3.1 API has been shut down (it now returns "This API version has been deprecated"), and v5 needs an account API key. The data is bundled instead.
+- **Silhouettes:** `assets/outlines/{cca2}.svg`, generated from [Natural Earth](https://www.naturalearthdata.com/) 1:10m (public domain). They're inlined so CSS sets the colour.
+  - Each country is drawn in Mercator, centred on itself, so nothing splits at ±180°.
+  - Small far-off territories are dropped: France has Corsica but not French Guiana, while the US keeps Alaska.
+  - 24 microstates and atoll nations (e.g. Tuvalu, Monaco, the Maldives) are too small or scattered to recognise. They can be guessed but are never the answer, leaving 171 possible answers.
+- **Daily answers** follow a fixed shuffled order, so no country repeats for 171 days.
+- **Rebuilding:**
+
+  ```bash
+  npm install --no-save world-countries@5 world-atlas@2.0.2 topojson-client@3.1.0 d3-geo@3.1.1
+  node scripts/build-outline-data.js
+  ```
+
 ## Game modes
 
 The main menu offers three modes:
@@ -185,6 +204,10 @@ node scripts/curate-photos.js             # apply it
 ```
 index.html        The Daily Dose hub: one card per game, Sign in top right
 signin.html       sign in / create account (username + password)
+outline.html      Outline country-silhouette game
+js/outline-countries.js  195 countries for Outline (generated)
+assets/outlines/  one SVG silhouette per country (generated)
+scripts/build-outline-data.js  builds them
 pinpoint.html     Pinpoint globe game
 js/pinpoint-places.js  2,597 Pinpoint places (generated)
 scripts/build-pinpoint-places.js  builds them from GeoNames
