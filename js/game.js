@@ -655,7 +655,8 @@
     // Fallback image for any <img> on the page that fails (belt and braces).
     document.addEventListener('error', function (e) {
       var t = e.target;
-      if (t && t.tagName === 'IMG' && t !== el.photo && t.src.indexOf(PLACEHOLDER_SRC.slice(1)) === -1) {
+      if (t && t.tagName === 'IMG' && t !== el.photo && !t.closest('.leaflet-container') &&
+          t.src.indexOf(PLACEHOLDER_SRC.slice(1)) === -1) {
         t.src = PLACEHOLDER_SRC;
       }
     }, true);
