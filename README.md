@@ -9,52 +9,10 @@ Static HTML + vanilla JS + Tailwind (CDN) + Leaflet/OpenStreetMap. No build step
 The main menu offers three modes:
 
 - **Play:** five random photographs from the whole catalogue. Photos you've already seen this session are avoided.
-- **Daily:** the same five photos for everyone on a given day (UTC). They're picked by hashing the date, so no server is needed. Your first score each day is saved (in the browser, or your account) and shown on the menu with your day streak and a countdown to the next puzzle. Replays don't overwrite it.
-- **Timeline** and **Older or Newer:** shown on the menu as "coming soon".
+- **Daily:** the same five photos for everyone on a given day (UTC). They're picked by hashing the date, so no server is needed. Your first score each day is saved in the browser and shown on the menu; replays don't overwrite it.
 - **Eras:** pick a period (1900–1919, 1920–1939, …). Eras with fewer than five photos in the catalogue are disabled until a build adds more.
 
-The menu also shows matches played and your best score.
-
-## Accounts
-
-Players can create an account with just a **username and password** (no email). Their scores, best match and Daily streak are saved to the account and follow them to any device. Playing as a guest still works, with progress kept in the browser. When a guest signs up, that progress is moved into the new account.
-
-Accounts run on **Cloudflare Pages Functions** (`functions/api/[[route]].js`) with a **Cloudflare D1** database. Until the database is connected, the site works as before and "Sign in" says accounts aren't switched on yet.
-
-### Switching accounts on (one-time, about 5 minutes)
-
-1. **Create the database.** In the Cloudflare dashboard go to **Storage & Databases → D1 SQL Database → Create**. Name it `snapshot-accounts`. The default location is fine.
-2. **Connect it to the site.** Open **Workers & Pages → your Pages project → Settings → Bindings → Add → D1 database**:
-   - Variable name: `DB` (exactly this, in capitals)
-   - D1 database: `snapshot-accounts`
-   - Add it for **Production**, and for **Preview** too if you use preview deployments.
-3. **Redeploy.** Go to **Deployments**, open the menu (⋯) on the latest deployment and choose **Retry deployment**. Bindings only apply to new deployments.
-4. **Test it.** Open the site, click **Sign in → Create account**, and make an account. The tables are created automatically the first time anyone uses accounts.
-
-To see your users, open the D1 database's **Console** tab and run `SELECT id, username, created_at FROM users;`. Passwords are never stored, only salted hashes.
-
-### How it works
-
-| Endpoint | What it does |
-|---|---|
-| `GET /api/me` | Who is signed in |
-| `POST /api/signup` | Create an account (and sign in) |
-| `POST /api/login` / `POST /api/logout` | Sign in / out |
-| `GET`/`PUT /api/progress` | Load / save the player's progress |
-
-- **Passwords:** hashed with PBKDF2-SHA256 (100,000 iterations), with a random salt per user.
-- **Sessions:** a random token in an HttpOnly, Secure cookie that lasts 30 days. Only a hash of the token is stored.
-- **Brute-force protection:** 10 wrong passwords for one username, or 30 from one network, within 15 minutes locks login for 15 minutes. Sign-ups are limited to 5 per network per hour.
-- **Cross-site requests:** requests from other websites are refused.
-- **No password reset,** because there's no email to send it to. The sign-up form warns about this.
-
-**Test accounts locally** with Cloudflare's dev server, which gives you a local database:
-
-```bash
-npx wrangler pages dev . --d1 DB
-```
-
-Then open http://localhost:8788. The plain `python3 -m http.server` preview still works, just without accounts.
+The menu also shows matches played and your best score, both stored in the browser's localStorage.
 
 ## Run locally
 
@@ -138,8 +96,6 @@ node scripts/curate-photos.js             # apply it
 index.html        layout and screens
 css/styles.css    component styles
 js/scoring.js     Haversine and scoring (pure functions)
-js/account.js     sign-in / sign-up client for /api
-functions/api/    accounts API (Cloudflare Pages Functions + D1)
 js/data.js        embedded fallback photos and Historypin docs
 js/wikidata-rounds.js  Wikidata SPARQL + Commons fetcher
 scripts/build-photos.js  builds the photo catalogue from Wikimedia Commons

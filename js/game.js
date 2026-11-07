@@ -103,15 +103,8 @@
     resYear: $('res-year'), resTime: $('res-time'), resMeter: $('res-meter'), resDesc: $('res-desc'),
     resCredit: $('res-credit'),
     next: $('next'),
-    menu: $('menu'), modeGrid: $('mode-sections'), menuStatus: $('menu-status'), menuStats: $('menu-stats'),
-    dailyDesc: $('daily-desc'), dailyBadge: $('daily-badge'), dailyStreak: $('daily-streak'),
-    dailyCountdown: $('daily-countdown'), menuGreeting: $('menu-greeting'),
-    accountBtn: $('account-btn'), accountLabel: $('account-label'), account: $('account'),
-    accountClose: $('account-close'), accSignedOut: $('account-signed-out'), accSignedIn: $('account-signed-in'),
-    accUnavailable: $('account-unavailable'), accTitle: $('account-title'), accForm: $('account-form'),
-    accUser: $('acc-user'), accPass: $('acc-pass'), accPass2: $('acc-pass2'), accPass2Wrap: $('acc-pass2-wrap'),
-    accHint: $('acc-hint'), accError: $('acc-error'), accSubmit: $('acc-submit'), accName: $('acc-name'),
-    accSignout: $('acc-signout'), accOk: $('acc-ok'),
+    menu: $('menu'), modeGrid: $('mode-grid'), menuStatus: $('menu-status'), menuStats: $('menu-stats'),
+    dailyDesc: $('daily-desc'), dailyBadge: $('daily-badge'),
     eraPicker: $('era-picker'), eraList: $('era-list'), eraBack: $('era-back'),
     howto: $('howto'), howtoOpen: $('howto-open'), howtoClose: $('howto-close'),
     toMenu: $('to-menu'), modeLabel: $('mode-label'),
@@ -556,72 +549,6 @@
     try { window.localStorage.setItem('snapshot.' + key, JSON.stringify(value)); } catch (e) { /* private mode etc. */ }
   }
 
-  /* ---- progress -----------------------------------------------------------
-   * Everything worth keeping, in one object. Stored in localStorage (guests)
-   * and, when signed in, mirrored to the account via /api/progress.
-   *   stats   { played, best }
-   *   daily   { "YYYY-MM-DD": score }   first Daily score of each day
-   * ---------------------------------------------------------------------- */
-  var PROGRESS_VERSION = 1;
-
-  function getProgress() {
-    var stats = readStore('stats', { played: 0, best: 0 });
-    var history = readStore('dailyHistory', {});
-    // Older versions kept only today's daily result; fold it in.
-    var legacy = readStore('daily', null);
-    if (legacy && legacy.date && history[legacy.date] == null) history[legacy.date] = legacy.total;
-    return { v: PROGRESS_VERSION, stats: { played: stats.played || 0, best: stats.best || 0 }, daily: history };
-  }
-
-  function setProgress(p) {
-    writeStore('stats', p.stats);
-    writeStore('dailyHistory', p.daily);
-    try { window.localStorage.removeItem('snapshot.daily'); } catch (e) { /* ignore */ }
-  }
-
-  function clearProgress() {
-    ['stats', 'dailyHistory', 'daily'].forEach(function (k) {
-      try { window.localStorage.removeItem('snapshot.' + k); } catch (e) { /* ignore */ }
-    });
-  }
-
-  /** Combine two progress objects without losing anything. */
-  function mergeProgress(a, b) {
-    a = a || {}; b = b || {};
-    var sa = a.stats || {}, sb = b.stats || {};
-    var daily = {};
-    [b.daily || {}, a.daily || {}].forEach(function (h) {   // a wins on the same day
-      Object.keys(h).forEach(function (d) {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(d) && isFinite(h[d])) daily[d] = Number(h[d]);
-      });
-    });
-    return {
-      v: PROGRESS_VERSION,
-      stats: { played: Math.max(sa.played || 0, sb.played || 0), best: Math.max(sa.best || 0, sb.best || 0) },
-      daily: daily
-    };
-  }
-
-  function dayOffset(key, delta) {
-    var d = new Date(key + 'T00:00:00Z');
-    d.setUTCDate(d.getUTCDate() + delta);
-    return d.toISOString().slice(0, 10);
-  }
-
-  /** Consecutive days with a Daily played, ending today (or yesterday if today isn't done yet). */
-  function dailyStreak(history) {
-    var day = todayKey();
-    if (history[day] == null) day = dayOffset(day, -1);
-    var n = 0;
-    while (history[day] != null) { n++; day = dayOffset(day, -1); }
-    return n;
-  }
-
-  function syncProgressToAccount() {
-    var acct = window.SnapshotAccount;
-    if (acct && acct.user()) acct.saveProgress(getProgress());
-  }
-
   /** Every photo in the catalogue (loads all shards; used by Eras). */
   function loadAllPhotos() {
     var manifest = window.SNAPSHOT_MANIFEST;
@@ -739,8 +666,7 @@
   }
 
   function renderMenu() {
-    var progress = getProgress();
-    var stats = progress.stats;
+    var stats = readStore('stats', { played: 0, best: 0 });
     var manifest = window.SNAPSHOT_MANIFEST;
     var parts = [];
     if (manifest && manifest.count) parts.push(fmt(manifest.count) + ' photographs');
@@ -748,38 +674,15 @@
     if (stats.best) parts.push('Best ' + fmt(stats.best));
     el.menuStats.textContent = parts.join(' · ');
 
-    var todayScore = progress.daily[todayKey()];
-    var doneToday = todayScore != null;
+    var daily = readStore('daily', null);
+    var doneToday = daily && daily.date === todayKey();
     el.dailyBadge.hidden = !doneToday;
-    if (doneToday) el.dailyBadge.textContent = '✓ ' + fmt(todayScore);
+    if (doneToday) el.dailyBadge.textContent = 'Today: ' + fmt(daily.total);
     el.dailyDesc.textContent = doneToday
-      ? 'Done for today. Replay for fun; your first score counts'
+      ? 'Played today. Replay for fun; your score is kept'
       : 'Today’s five: the same for everyone';
 
-    var streak = dailyStreak(progress.daily);
-    el.dailyStreak.hidden = streak < 1;
-    el.dailyStreak.textContent = '🔥 ' + streak + '-day streak';
-
-    var acct = window.SnapshotAccount;
-    var user = acct && acct.user();
-    el.menuGreeting.textContent = user
-      ? 'Welcome back, ' + user.username + '.'
-      : 'Where was it taken, and when?';
-    el.accountLabel.textContent = user ? user.username : 'Sign in';
-    el.accountBtn.classList.toggle('is-signed-in', !!user);
-    el.accountBtn.setAttribute('aria-label', user ? 'Account: ' + user.username : 'Sign in or create an account');
-
-    updateCountdown();
     fillCardImages();
-  }
-
-  /** "New puzzles in 5h 12m": time to the next UTC midnight. */
-  function updateCountdown() {
-    var now = new Date();
-    var next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
-    var mins = Math.max(0, Math.floor((next - now.getTime()) / 60000));
-    var h = Math.floor(mins / 60), m = mins % 60;
-    el.dailyCountdown.textContent = 'New puzzles in ' + (h ? h + 'h ' : '') + m + 'm';
   }
 
   var cardImagesFilled = false;
@@ -968,18 +871,20 @@
       '</tr>';
     }).join('');
 
-    // Saved progress (browser, plus the account when signed in)
-    var progress = getProgress();
-    progress.stats.played += 1;
-    progress.stats.best = Math.max(progress.stats.best, state.total);
+    // Saved progress
+    var stats = readStore('stats', { played: 0, best: 0 });
+    stats.played = (stats.played || 0) + 1;
+    stats.best = Math.max(stats.best || 0, state.total);
+    writeStore('stats', stats);
     var dailyNote = '';
     if (state.mode === 'daily') {
-      var prev = progress.daily[todayKey()];
-      if (prev == null) progress.daily[todayKey()] = state.total;
-      else dailyNote = ' (Your first score today, ' + fmt(prev) + ', is the one that counts.)';
+      var prev = readStore('daily', null);
+      if (!prev || prev.date !== todayKey()) {
+        writeStore('daily', { date: todayKey(), total: state.total });
+      } else {
+        dailyNote = ' (Your first score today, ' + fmt(prev.total) + ', is the one that counts.)';
+      }
     }
-    setProgress(progress);
-    syncProgressToAccount();
     if (dailyNote) el.endVerdict.textContent += dailyNote;
     el.again.textContent = state.mode === 'daily' ? 'Play a random match' : 'Play again';
 
@@ -1030,7 +935,6 @@
     });
     el.toMenu.addEventListener('click', function () { showMenu(); });
     el.howtoOpen.addEventListener('click', function () { el.howto.hidden = false; el.howtoClose.focus(); });
-    bindAccount();
     el.howtoClose.addEventListener('click', function () { el.howto.hidden = true; el.howtoOpen.focus(); });
 
     el.mapToggle.addEventListener('click', function () {
@@ -1044,9 +948,8 @@
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !el.howto.hidden) { el.howto.hidden = true; return; }
-      if (e.key === 'Escape' && !el.account.hidden) { closeAccount(); return; }
       if (e.key === 'Escape' && !el.menu.hidden && !el.eraPicker.hidden) { showEraPicker(false); return; }
-      if (!el.menu.hidden || !el.endScreen.hidden || !el.howto.hidden || !el.account.hidden) return;
+      if (!el.menu.hidden || !el.endScreen.hidden || !el.howto.hidden) return;
       if (e.key === 'Enter' && !e.target.closest('button')) {
         if (!state.locked) submitGuess(); else nextRound();
       } else if (e.key === 'Escape' && !state.locked) {
@@ -1055,124 +958,6 @@
         el.mapToggle.click();
       }
     });
-  }
-
-  // ============================================================== ACCOUNT
-  var accountTab = 'signin';
-
-  function setAccountTab(tab) {
-    accountTab = tab;
-    var signup = tab === 'signup';
-    el.accTitle.textContent = signup ? 'Create an account' : 'Sign in';
-    el.accSubmit.textContent = signup ? 'Create account' : 'Sign in';
-    el.accPass2Wrap.hidden = !signup;
-    el.accHint.hidden = !signup;
-    el.accPass.setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
-    Array.prototype.forEach.call(el.account.querySelectorAll('[role=tab]'), function (t) {
-      t.setAttribute('aria-selected', String(t.dataset.tab === tab));
-    });
-    showAccountError('');
-  }
-
-  function showAccountError(msg, field) {
-    el.accError.textContent = msg || '';
-    [el.accUser, el.accPass, el.accPass2].forEach(function (i) { i.removeAttribute('aria-invalid'); });
-    if (field) { field.setAttribute('aria-invalid', 'true'); field.focus(); }
-  }
-
-  function openAccount() {
-    var acct = window.SnapshotAccount;
-    var user = acct && acct.user();
-    var available = acct && acct.isAvailable();
-    el.accSignedIn.hidden = !user;
-    el.accSignedOut.hidden = !!user || available === false;
-    el.accUnavailable.hidden = !!user || available !== false;
-    el.account.setAttribute('aria-labelledby', user ? 'acc-name' : (available === false ? 'acc-unavail-title' : 'account-title'));
-    if (user) el.accName.textContent = user.username;
-    el.account.hidden = false;
-    if (user) el.accSignout.focus();
-    else if (available === false) el.accOk.focus();
-    else { setAccountTab(accountTab); el.accUser.focus(); }
-  }
-
-  function closeAccount() {
-    el.account.hidden = true;
-    el.accPass.value = '';
-    el.accPass2.value = '';
-    el.accountBtn.focus({ preventScroll: true });
-  }
-
-  /** After signing in: combine this browser's progress with the account's. */
-  function adoptAccountProgress() {
-    var acct = window.SnapshotAccount;
-    return acct.loadProgress().then(function (remote) {
-      var merged = mergeProgress(getProgress(), remote);
-      setProgress(merged);
-      return acct.saveProgress(merged);
-    }).catch(function (e) {
-      console.warn('Could not load account progress', e);
-    }).then(function () {
-      if (!el.menu.hidden) renderMenu();
-    });
-  }
-
-  function submitAccount(e) {
-    e.preventDefault();
-    var acct = window.SnapshotAccount;
-    var username = el.accUser.value.trim();
-    var password = el.accPass.value;
-    var signup = accountTab === 'signup';
-    if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) {
-      return showAccountError(signup
-        ? 'Usernames are 3–20 characters: letters, numbers and _ only.'
-        : 'Enter your username.', el.accUser);
-    }
-    if (password.length < 8) {
-      return showAccountError(signup ? 'Passwords need at least 8 characters.' : 'Enter your password.', el.accPass);
-    }
-    if (signup && password !== el.accPass2.value) {
-      return showAccountError('The passwords don’t match.', el.accPass2);
-    }
-    showAccountError('');
-    el.accSubmit.disabled = true;
-    var label = el.accSubmit.textContent;
-    el.accSubmit.textContent = signup ? 'Creating account…' : 'Signing in…';
-    (signup ? acct.signUp(username, password) : acct.signIn(username, password))
-      .then(function () {
-        closeAccount();
-        return adoptAccountProgress();
-      }, function (err) {
-        var field = err.code === 'username_taken' || err.code === 'bad_username' ? el.accUser
-          : err.code === 'bad_password' || err.code === 'bad_credentials' ? el.accPass : null;
-        showAccountError(err.status === 503 || err.status === 404
-          ? 'Accounts aren’t switched on for this site yet.'
-          : err.message || 'Something went wrong. Please try again.', field);
-      })
-      .then(function () {
-        el.accSubmit.disabled = false;
-        el.accSubmit.textContent = label;
-      });
-  }
-
-  function bindAccount() {
-    el.accountBtn.addEventListener('click', openAccount);
-    el.accountClose.addEventListener('click', closeAccount);
-    el.accOk.addEventListener('click', closeAccount);
-    el.account.addEventListener('click', function (e) { if (e.target === el.account) closeAccount(); });
-    Array.prototype.forEach.call(el.account.querySelectorAll('[role=tab]'), function (t) {
-      t.addEventListener('click', function () { setAccountTab(t.dataset.tab); el.accUser.focus(); });
-    });
-    el.accForm.addEventListener('submit', submitAccount);
-    el.accSignout.addEventListener('click', function () {
-      el.accSignout.disabled = true;
-      window.SnapshotAccount.signOut().then(function () {
-        clearProgress(); // don't leave this account's history on a shared computer
-        el.accSignout.disabled = false;
-        closeAccount();
-        renderMenu();
-      });
-    });
-    window.SnapshotAccount.onChange(function () { if (!el.menu.hidden) renderMenu(); });
   }
 
   // ================================================================= INIT
@@ -1190,10 +975,6 @@
     loadBuiltPhotos(); // start downloading photos while the menu shows
     initMap();
     initMenuMap();
-    if (window.SnapshotAccount) {
-      window.SnapshotAccount.init().then(function (user) { if (user) adoptAccountProgress(); });
-    }
-    setInterval(function () { if (!el.menu.hidden) updateCountdown(); }, 30000);
     initViewer();
     bindEvents();
     setYear(1963, false);

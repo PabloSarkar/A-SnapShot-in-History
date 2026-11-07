@@ -145,75 +145,35 @@
         <span class="brand-mark brand-mark-lg" aria-hidden="true"></span>
         <h1 id="menu-title" class="menu-title">A Snapshot <em>in</em> History</h1>
       </span>
-      <div class="menu-actions">
-        <button type="button" id="howto-open" class="ghost-btn">How to play</button>
-        <button type="button" id="account-btn" class="ghost-btn account-btn" aria-haspopup="dialog">
-          <span class="account-avatar" aria-hidden="true">👤</span><span id="account-label">Sign in</span>
-        </button>
-      </div>
+      <button type="button" id="howto-open" class="ghost-btn">How to play</button>
     </header>
 
     <main class="menu-main">
-      <p class="menu-tagline" id="menu-greeting">Where was it taken, and when?</p>
+      <p class="menu-tagline">Where was it taken, and when?</p>
 
-      <div id="mode-sections">
-        <section class="menu-section" aria-labelledby="daily-heading">
-          <div class="menu-section-head">
-            <h2 id="daily-heading" class="menu-h">Today’s challenges</h2>
-            <span id="daily-countdown" class="menu-sub"></span>
-          </div>
-          <div class="mode-grid">
-            <button type="button" class="mode-card" data-mode="daily">
-              <img class="mode-img" alt="" />
-              <span class="mode-text">
-                <span class="mode-name">Daily</span>
-                <span class="mode-desc" id="daily-desc">Today’s five: the same for everyone</span>
-              </span>
-              <span class="mode-badge" id="daily-badge" hidden></span>
-              <span class="mode-streak" id="daily-streak" hidden></span>
-            </button>
-            <button type="button" class="mode-card is-soon" data-mode="timeline" disabled aria-describedby="soon-note">
-              <img class="mode-img" alt="" />
-              <span class="mode-text">
-                <span class="mode-name">Timeline</span>
-                <span class="mode-desc">Put five photos in the order they were taken</span>
-              </span>
-              <span class="mode-badge mode-badge-soon">Coming soon</span>
-            </button>
-            <button type="button" class="mode-card is-soon" data-mode="older-newer" disabled aria-describedby="soon-note">
-              <img class="mode-img" alt="" />
-              <span class="mode-text">
-                <span class="mode-name">Older or Newer</span>
-                <span class="mode-desc">Keep a streak going, one photo at a time</span>
-              </span>
-              <span class="mode-badge mode-badge-soon">Coming soon</span>
-            </button>
-          </div>
-          <p id="soon-note" class="sr-only">This game is coming soon.</p>
-        </section>
-
-        <section class="menu-section" aria-labelledby="practice-heading">
-          <div class="menu-section-head">
-            <h2 id="practice-heading" class="menu-h">Practice</h2>
-            <span class="menu-sub">Unlimited rounds</span>
-          </div>
-          <div class="mode-grid mode-grid-2">
-            <button type="button" class="mode-card mode-card-wide" data-mode="classic">
-              <img class="mode-img" alt="" />
-              <span class="mode-text">
-                <span class="mode-name">Play</span>
-                <span class="mode-desc">Five random photographs, 1900 to today</span>
-              </span>
-            </button>
-            <button type="button" class="mode-card mode-card-wide" data-mode="eras">
-              <img class="mode-img" alt="" />
-              <span class="mode-text">
-                <span class="mode-name">Eras</span>
-                <span class="mode-desc">Pick a period to focus on</span>
-              </span>
-            </button>
-          </div>
-        </section>
+      <div id="mode-grid" class="mode-grid">
+        <button type="button" class="mode-card" data-mode="classic">
+          <img class="mode-img" alt="" />
+          <span class="mode-text">
+            <span class="mode-name">Play</span>
+            <span class="mode-desc">Five random photographs, 1900 to today</span>
+          </span>
+        </button>
+        <button type="button" class="mode-card" data-mode="daily">
+          <img class="mode-img" alt="" />
+          <span class="mode-text">
+            <span class="mode-name">Daily</span>
+            <span class="mode-desc" id="daily-desc">Today’s five: the same for everyone</span>
+          </span>
+          <span class="mode-badge" id="daily-badge" hidden></span>
+        </button>
+        <button type="button" class="mode-card" data-mode="eras">
+          <img class="mode-img" alt="" />
+          <span class="mode-text">
+            <span class="mode-name">Eras</span>
+            <span class="mode-desc">Pick a period to focus on</span>
+          </span>
+        </button>
       </div>
 
       <div id="era-picker" class="era-picker" hidden>
@@ -231,52 +191,6 @@
       <span id="menu-stats"></span>
       <span>Photos from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a></span>
     </footer>
-  </div>
-
-  <!-- =========================== ACCOUNT =========================== -->
-  <div id="account" class="overlay" role="dialog" aria-modal="true" aria-labelledby="account-title" hidden>
-    <div class="card account-card">
-      <button type="button" id="account-close" class="icon-btn account-close" aria-label="Close">×</button>
-
-      <div id="account-signed-out">
-        <h2 id="account-title" class="card-title account-title">Sign in</h2>
-        <div class="account-tabs" role="tablist" aria-label="Account">
-          <button type="button" role="tab" id="tab-signin" data-tab="signin" aria-selected="true">Sign in</button>
-          <button type="button" role="tab" id="tab-signup" data-tab="signup" aria-selected="false">Create account</button>
-        </div>
-        <form id="account-form" class="account-form" novalidate>
-          <label class="field">
-            <span class="field-label">Username</span>
-            <input id="acc-user" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false"
-                   required minlength="3" maxlength="20" />
-          </label>
-          <label class="field">
-            <span class="field-label">Password</span>
-            <input id="acc-pass" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" />
-          </label>
-          <label class="field" id="acc-pass2-wrap" hidden>
-            <span class="field-label">Confirm password</span>
-            <input id="acc-pass2" name="password2" type="password" autocomplete="new-password" maxlength="128" />
-          </label>
-          <p id="acc-hint" class="acc-hint" hidden>No email needed. Usernames are 3–20 letters, numbers or _. There’s no password reset, so keep your password somewhere safe.</p>
-          <p id="acc-error" class="acc-error" role="alert"></p>
-          <button type="submit" id="acc-submit" class="primary-btn w-full">Sign in</button>
-        </form>
-        <p class="acc-foot">Playing as a guest works too. Your progress is kept in this browser.</p>
-      </div>
-
-      <div id="account-signed-in" hidden>
-        <h2 class="card-title account-title">Hi, <span id="acc-name"></span></h2>
-        <p class="card-lede">Your scores and streaks are saved to your account, so they follow you to any device.</p>
-        <button type="button" id="acc-signout" class="secondary-btn mt-5 w-full">Sign out</button>
-      </div>
-
-      <div id="account-unavailable" hidden>
-        <h2 id="acc-unavail-title" class="card-title account-title">Accounts are coming</h2>
-        <p class="card-lede">Accounts aren’t switched on for this site yet. You can keep playing as a guest; your progress is saved in this browser.</p>
-        <button type="button" id="acc-ok" class="primary-btn mt-5 w-full">OK</button>
-      </div>
-    </div>
   </div>
 
   <!-- ========================= HOW TO PLAY ========================= -->
@@ -318,7 +232,6 @@
   <script src="./js/data.js"></script>
   <script src="./data/photos/manifest.js"></script>
   <script src="./js/wikidata-rounds.js"></script>
-  <script src="./js/account.js"></script>
   <script src="./js/game.js"></script>
 </body>
 </html>
