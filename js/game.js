@@ -12,8 +12,8 @@
   var PLACEHOLDER_SRC = './assets/placeholder.svg';
 
   // Where photos come from, in order:
-  //   1. ./data/photos.json: pre-built from Wikidata + Commons by
-  //      scripts/build-photos.js. Loads instantly; this is the main source.
+  //   1. js/photos.js (or ./data/photos.json): pre-built from Wikidata +
+  //      Commons by scripts/build-photos.js. Loads instantly; this is the main source.
   //   2. Live Wikidata queries (js/wikidata-rounds.js), only if enabled below.
   //      Off by default because each query takes ~10–60 s.
   //   3. The embedded entries in js/data.js, as a last resort.
@@ -396,6 +396,12 @@
 
   function loadBuiltPhotos() {
     if (!builtPhotos) {
+      // Preferred: js/photos.js (a plain script, works everywhere, even file://).
+      if (Array.isArray(window.SNAPSHOT_PHOTOS) && window.SNAPSHOT_PHOTOS.length) {
+        builtPhotos = Promise.resolve(validPhotos(window.SNAPSHOT_PHOTOS));
+        return builtPhotos;
+      }
+      // Fallback: the same list as JSON.
       builtPhotos = fetch(PHOTOS_JSON, { cache: 'no-cache' })
         .then(function (res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -403,7 +409,7 @@
         })
         .then(function (json) { return validPhotos(Array.isArray(json) ? json : json.photos); })
         .catch(function (err) {
-          console.warn('Could not load ' + PHOTOS_JSON + '; using the embedded set.', err);
+          console.warn('Could not load the photo list; using the embedded set.', err);
           builtPhotos = null; // try again next match
           return [];
         });
