@@ -54,7 +54,7 @@ const VERIFY = argv.includes('--verify');
 const SHARD_SIZE = 200;
 const THUMB_WIDTH = 1280;          // Wikimedia only serves 250/330/500/960/1280/1920
 const MIN_WIDTH = 500;             // skip tiny scans
-const CANDIDATES_PER_YEAR = PER_YEAR * 4;
+const CANDIDATES_PER_YEAR = PER_YEAR * 3;
 const MAX_PAGES_PER_QUERY = 8;     // 50 files per page
 
 const ROOT = path.join(__dirname, '..');
@@ -127,17 +127,24 @@ function photoYear(raw) {
   return unique.length === 1 ? parseInt(unique[0], 10) : 'imprecise'; // "1950–1952" etc.
 }
 
-/** Human-readable caption from the Commons title / description. */
-function caption(objectName, imageDescription, title) {
-  let s = stripHtml(objectName) || title.replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '');
-  s = s
-    .replace(/\s*-\s*geograph\.org\.uk\s*-\s*\d+$/i, '')       // geograph ids
-    .replace(/\s*\(\d{6,}\)\s*$/, '')                          // flickr ids
-    .replace(/^Fotothek\s+df\s+[\w-]+\s+\d+\s+\d+\s*/i, '')    // Deutsche Fotothek shelfmarks
-    .replace(/^(Bundesarchiv\s+)?(Bild|B)\s+[\w-]+,\s*/i, '')  // Bundesarchiv codes
+/** Strip archive shelfmarks, ids and other noise from a caption. */
+function cleanCaption(s) {
+  return String(s || '')
+    .replace(/[​-‏﻿]/g, '')                       // zero-width chars
+    .replace(/\s*-\s*geograph\.org\.uk\s*-\s*\d+$/i, '')         // "… - geograph.org.uk - 2183759"
+    .replace(/\s*geograph-\d+-by-[\w-]+$/i, '')                  // "… geograph-2423641-by-Ben-Brooksbank"
+    .replace(/\s*\(\d{6,}\)\s*$/, '')                            // flickr ids
+    .replace(/^Fotothek\s+df\s+[\w-]+\s+\d+\s+\d+\s*/i, '')      // Deutsche Fotothek shelfmarks
+    .replace(/^(Bundesarchiv\s+)?(Bild|B)\s+[\w-]+,\s*/i, '')    // Bundesarchiv codes
+    .replace(/^\d{2}-\d{2}-\d{4}\s+\d{4,6}\s+/, '')              // IISG "01-12-1950 07064 "
     .replace(/[_]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** Human-readable caption from the Commons title / description. */
+function caption(objectName, imageDescription, title) {
+  let s = cleanCaption(stripHtml(objectName) || title.replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, ''));
   if (s.replace(/[^a-z]/gi, '').length < 8) {
     const d = stripHtml(imageDescription);
     if (d) s = d;
@@ -147,7 +154,8 @@ function caption(objectName, imageDescription, title) {
 }
 
 function credit(artist, license) {
-  let a = stripHtml(artist).replace(/\s*\(.*?\)\s*/g, ' ').trim();
+  let a = stripHtml(artist).replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  a = a.replace(/^(.+?)\s+\1$/, '$1'); // "Unknown author Unknown author"
   if (a.length > 80) a = a.slice(0, 77) + '…';
   const l = stripHtml(license);
   return [a || 'Unknown photographer', l].filter(Boolean).join(' · ');
@@ -275,6 +283,10 @@ async function imageLoads(url) {
 
 // ------------------------------------------------------------------ output
 function writeOutputs(photos) {
+  photos.forEach((p) => {
+    p.description = cleanCaption(p.description) || p.description;
+    p.credit = String(p.credit || '').replace(/^(.+?)\s+\1(?= · |$)/, '$1');
+  });
   photos.sort((a, b) => a.actual_year - b.actual_year || a.id.localeCompare(b.id));
   fs.mkdirSync(path.dirname(OUT_JSON), { recursive: true });
   fs.writeFileSync(OUT_JSON, JSON.stringify({
@@ -351,4 +363,4 @@ if (require.main === module) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }
 
-module.exports = { photoYear, caption, credit, toPhoto, stripHtml };
+module.exports = { photoYear, caption, cleanCaption, credit, toPhoto, stripHtml };
