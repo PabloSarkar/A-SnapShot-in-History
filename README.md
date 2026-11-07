@@ -1,4 +1,6 @@
-# A Snapshot in History
+# The Daily Dose
+
+Daily history games built from real photographs. The first game, **Snapshot**, is below.
 
 A browser game: study a historical photograph, drop a pin where you think it was taken, and slide to the year. Five rounds per match, up to 10,000 points each.
 
@@ -10,6 +12,38 @@ Static HTML + vanilla JS + Tailwind (CDN) + Leaflet/OpenStreetMap. No build step
 - **`/snapshot`** (`snapshot.html`) is the photo game. Its menu has a "‹ All games" link back to the hub.
 
 Timeline and Older or Newer show on the hub as "Coming soon" cards. To add a game, copy a `.game-card` block in `index.html`, point its `href` at the game's page and give it a colour in `css/hub.css`.
+
+## Accounts
+
+The **Sign in** button (top right of the hub) opens `signin.html`. There you can sign in or create an account with just a **username and password**, no email. Once you're signed in, the button shows your username.
+
+Accounts run on **Cloudflare Pages Functions** (`functions/api/[[route]].js`) with a **Cloudflare D1** database. Until the database is connected, the sign-in page says accounts aren't switched on yet, and every game still works for guests.
+
+### Switching accounts on (one-time, about 5 minutes)
+
+1. **Create the database.** In the Cloudflare dashboard go to **Storage & Databases → D1 SQL Database → Create**. Name it `daily-dose-accounts`.
+2. **Connect it to the site.** Open **Workers & Pages → your Pages project → Settings → Bindings → Add → D1 database**:
+   - Variable name: `DB` (exactly this, in capitals)
+   - D1 database: `daily-dose-accounts`
+   - Add it for **Production**, and for **Preview** too if you use preview deployments.
+3. **Redeploy.** Go to **Deployments**, open ⋯ on the latest deployment and choose **Retry deployment**. Bindings only apply to new deployments.
+4. **Test it.** Click **Sign in → Create account** on your site. The database tables are created automatically the first time.
+
+To see who has signed up, open the database's **Console** tab in Cloudflare and run `SELECT id, username, created_at FROM users;`.
+
+### Security
+
+- **Passwords:** never stored, only PBKDF2-SHA256 hashes (100,000 iterations) with a random salt per user.
+- **Sessions:** a random token in an HttpOnly, Secure cookie that lasts 30 days. Only a hash of the token is stored.
+- **Brute-force protection:** 10 wrong passwords for one username, or 30 from one network, within 15 minutes locks login for 15 minutes. Sign-ups are limited to 5 per network per hour.
+- **Cross-site requests:** requests from other websites are refused.
+- **No password reset,** because there's no email to send it to. The sign-up form warns about this.
+
+**Test accounts locally** with Cloudflare's dev server, which gives you a local database. Open http://localhost:8788 after running:
+
+```bash
+npx wrangler pages dev . --d1 DB
+```
 
 ## Game modes
 
@@ -100,7 +134,11 @@ node scripts/curate-photos.js             # apply it
 ## Files
 
 ```
-index.html        games hub: one card per game
+index.html        The Daily Dose hub: one card per game, Sign in top right
+signin.html       sign in / create account (username + password)
+js/account.js     account client for /api
+js/signin.js      sign-in page logic
+functions/api/    accounts API (Cloudflare Pages Functions + D1)
 snapshot.html     the Snapshot game (its own menu, rounds and results)
 css/hub.css       hub styles
 css/styles.css    component styles

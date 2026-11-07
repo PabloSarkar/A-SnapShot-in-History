@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>A Snapshot in History</title>
+  <title>The Daily Dose</title>
   <meta name="description" content="Daily history games built from real photographs: where was it taken, and when?" />
   <meta name="theme-color" content="#f6f1e6" />
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
@@ -16,9 +16,13 @@
 </head>
 <body>
   <header class="hub-top">
-    <a href="./" class="hub-brand" aria-label="A Snapshot in History: all games">
+    <a href="./" class="hub-brand" aria-label="The Daily Dose: all games">
       <img src="./assets/favicon.svg" alt="" width="34" height="34" />
-      <span>A Snapshot <em>in</em> History</span>
+      <span>The <em>Daily</em> Dose</span>
+    </a>
+    <a href="./signin.html" class="hub-signin" id="hub-account">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2c-4.4 0-8 2.2-8 5v2h16v-2c0-2.8-3.6-5-8-5Z"/></svg>
+      <span id="hub-account-label">Sign in</span>
     </a>
   </header>
 
@@ -133,7 +137,16 @@
     Photographs from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>
   </footer>
 
+  <script src="./js/account.js"></script>
   <script>
+    // Show who's signed in (if accounts are switched on).
+    window.SnapshotAccount.init().then(function (user) {
+      if (!user) return;
+      document.getElementById('hub-account-label').textContent = user.username;
+      document.getElementById('hub-account').setAttribute('aria-label', 'Account: ' + user.username);
+      document.getElementById('hub-account').classList.add('is-signed-in');
+    });
+
     // Today's date for the badge, in the visitor's language and time zone.
     (function () {
       var d = new Date();

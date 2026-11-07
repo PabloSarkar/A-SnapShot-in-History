@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sign in · The Daily Dose</title>
+  <meta name="description" content="Sign in to The Daily Dose with a username and password." />
+  <meta name="theme-color" content="#f6f1e6" />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="./css/hub.css" />
+</head>
+<body>
+  <header class="hub-top">
+    <a href="./" class="hub-brand" aria-label="The Daily Dose: all games">
+      <img src="./assets/favicon.svg" alt="" width="34" height="34" />
+      <span>The <em>Daily</em> Dose</span>
+    </a>
+  </header>
+
+  <main class="auth-main">
+    <div class="auth-card">
+      <a href="./" class="auth-back">‹ Back to games</a>
+
+      <!-- Signed out: sign in / create account -->
+      <section id="auth-signed-out" aria-labelledby="auth-title">
+        <h1 id="auth-title" class="auth-title">Welcome back</h1>
+        <p id="auth-lede" class="auth-lede">Sign in to keep your progress.</p>
+
+        <div class="auth-tabs" role="tablist" aria-label="Sign in or create an account">
+          <button type="button" role="tab" id="tab-signin" data-mode="signin" aria-selected="true">Sign in</button>
+          <button type="button" role="tab" id="tab-signup" data-mode="signup" aria-selected="false">Create account</button>
+        </div>
+
+        <form id="auth-form" class="auth-form" novalidate>
+          <label class="auth-field">
+            <span>Username</span>
+            <input id="auth-user" name="username" type="text" autocomplete="username" autocapitalize="off"
+                   spellcheck="false" required minlength="3" maxlength="20" />
+          </label>
+          <label class="auth-field">
+            <span>Password</span>
+            <span class="auth-input-wrap">
+              <input id="auth-pass" name="password" type="password" autocomplete="current-password"
+                     required minlength="8" maxlength="128" />
+              <button type="button" class="auth-show" data-for="auth-pass" aria-label="Show password">Show</button>
+            </span>
+          </label>
+          <label class="auth-field" id="auth-pass2-wrap" hidden>
+            <span>Confirm password</span>
+            <span class="auth-input-wrap">
+              <input id="auth-pass2" name="password2" type="password" autocomplete="new-password" maxlength="128" />
+              <button type="button" class="auth-show" data-for="auth-pass2" aria-label="Show password">Show</button>
+            </span>
+          </label>
+          <p id="auth-hint" class="auth-hint" hidden>
+            No email needed. Usernames are 3–20 letters, numbers or _. Passwords need at least 8 characters.
+            There’s no password reset, so keep yours somewhere safe.
+          </p>
+          <p id="auth-error" class="auth-error" role="alert"></p>
+          <button type="submit" id="auth-submit" class="auth-submit">Sign in</button>
+        </form>
+      </section>
+
+      <!-- Signed in -->
+      <section id="auth-signed-in" aria-labelledby="auth-in-title" hidden>
+        <h1 id="auth-in-title" class="auth-title">Hi, <span id="auth-name"></span></h1>
+        <p class="auth-lede">You’re signed in.</p>
+        <a href="./" class="auth-submit auth-link">Play today’s games</a>
+        <button type="button" id="auth-signout" class="auth-secondary">Sign out</button>
+      </section>
+
+      <!-- Accounts not configured on this deployment -->
+      <p id="auth-unavailable" class="auth-note" hidden>
+        Accounts aren’t switched on for this site yet. You can still play every game as a guest.
+      </p>
+    </div>
+  </main>
+
+  <footer class="hub-foot">
+    Photographs from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>
+  </footer>
+
+  <script src="./js/account.js"></script>
+  <script src="./js/signin.js"></script>
+</body>
+</html>

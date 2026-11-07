@@ -31,9 +31,21 @@ a { color: inherit; }
 
 /* ------------------------------------------------------------------ header */
 .hub-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 18px clamp(16px, 4vw, 48px);
   border-bottom: 1px solid rgba(28, 42, 51, 0.1);
 }
+.hub-signin {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 18px; border-radius: 999px;
+  background: var(--ink); color: var(--bg);
+  font-weight: 700; font-size: 0.95rem; text-decoration: none; white-space: nowrap;
+  max-width: 50vw; overflow: hidden; text-overflow: ellipsis;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.hub-signin:hover { background: #2c3e49; transform: translateY(-1px); }
+.hub-signin.is-signed-in { background: var(--surface); color: var(--ink); }
+.hub-signin.is-signed-in:hover { background: #e2d8c4; }
 .hub-brand {
   display: inline-flex; align-items: center; gap: 12px;
   text-decoration: none;
@@ -130,3 +142,68 @@ a.game-card:hover .game-art svg { transform: rotate(-1.5deg) scale(1.02); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; }
 }
+
+/* ============================================================= SIGN-IN PAGE */
+.auth-main {
+  flex: 1; display: grid; place-items: start center;
+  padding: clamp(24px, 6vh, 64px) 16px 40px;
+}
+.auth-card {
+  width: 100%; max-width: 420px;
+  background: #fffdf8; border: 1px solid rgba(28, 42, 51, 0.1);
+  border-radius: var(--radius); padding: clamp(22px, 4vw, 34px);
+  box-shadow: 0 14px 34px -20px rgba(28, 42, 51, 0.45);
+}
+.auth-back {
+  display: inline-block; margin-bottom: 14px;
+  font-size: 0.9rem; font-weight: 600; color: var(--ink-dim); text-decoration: none;
+}
+.auth-back:hover { color: var(--ink); }
+.auth-title { font-family: var(--font-display); font-weight: 800; font-size: 2rem; line-height: 1.1; letter-spacing: -0.01em; }
+.auth-lede { margin-top: 6px; color: var(--ink-dim); }
+.auth-tabs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  margin: 20px 0 18px; padding: 4px; border-radius: 14px; background: var(--surface);
+}
+.auth-tabs button {
+  padding: 9px; border: 0; border-radius: 11px; background: transparent;
+  font: inherit; font-weight: 700; font-size: 0.92rem; color: var(--ink-dim); cursor: pointer;
+}
+.auth-tabs button[aria-selected='true'] { background: #fffdf8; color: var(--ink); box-shadow: 0 1px 3px rgba(28, 42, 51, 0.15); }
+.auth-form { display: grid; gap: 14px; }
+.auth-field { display: grid; gap: 6px; }
+.auth-field > span { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #3d4a50; }
+.auth-input-wrap { position: relative; }
+.auth-field input {
+  width: 100%; padding: 12px 14px; border-radius: 12px;
+  border: 1.5px solid rgba(28, 42, 51, 0.18); background: #fff;
+  font: inherit; font-size: 1rem; color: var(--ink);
+}
+.auth-input-wrap input { padding-right: 64px; }
+.auth-field input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(28, 42, 51, 0.12); }
+.auth-field input[aria-invalid='true'] { border-color: var(--accent); }
+.auth-show {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  padding: 6px 10px; border: 0; border-radius: 8px; background: transparent;
+  font: inherit; font-size: 0.82rem; font-weight: 700; color: var(--ink-dim); cursor: pointer;
+}
+.auth-show:hover { background: var(--surface); color: var(--ink); }
+.auth-hint { font-size: 0.85rem; color: var(--ink-dim); line-height: 1.45; }
+.auth-error { font-size: 0.9rem; font-weight: 600; color: var(--accent); }
+.auth-error:empty { display: none; }
+.auth-submit {
+  margin-top: 4px; padding: 13px; border: 0; border-radius: 12px;
+  background: var(--ink); color: var(--bg);
+  font: inherit; font-weight: 800; font-size: 1rem; cursor: pointer;
+}
+.auth-submit:hover:not(:disabled) { background: #2c3e49; }
+.auth-submit:disabled { opacity: 0.6; cursor: progress; }
+.auth-secondary {
+  margin-top: 18px; width: 100%; padding: 12px; border-radius: 12px;
+  border: 1.5px solid rgba(28, 42, 51, 0.18); background: transparent;
+  font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; text-align: center; text-decoration: none; display: block;
+}
+.auth-secondary:hover { background: var(--surface); }
+.auth-note { margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: var(--surface); font-size: 0.9rem; line-height: 1.45; }
+[hidden] { display: none !important; }
+.auth-link { display: block; margin-top: 20px; text-align: center; text-decoration: none; }
