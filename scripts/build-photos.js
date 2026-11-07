@@ -334,6 +334,10 @@ async function main() {
       console.log(`Existing catalogue: ${all.size} photos`);
     } catch (e) { console.warn('Existing photos.json unreadable; starting fresh.'); }
   }
+  // Photos removed by curation (scripts/curate-photos.js) stay removed.
+  const REJECTED = path.join(ROOT, 'data', 'photos-rejected.json');
+  const rejectedIds = new Set(fs.existsSync(REJECTED)
+    ? (JSON.parse(fs.readFileSync(REJECTED, 'utf8')).photos || []).map((p) => p.id) : []);
 
   for (let year = FROM; year <= TO; year++) {
     const cacheFile = path.join(CACHE_DIR, year + '.json');
@@ -352,17 +356,29 @@ async function main() {
       fs.writeFileSync(cacheFile, JSON.stringify(chosen));
       console.log(`${year}: ${chosen.length} photos (from ${candidates.length} candidates, ${((Date.now() - t) / 1000).toFixed(0)}s)`);
     }
-    chosen.forEach((p) => all.set(p.id, p));
+    chosen.forEach((p) => { if (!rejectedIds.has(p.id)) all.set(p.id, p); });
     // Write as we go so a long run always leaves a usable catalogue behind.
     if ((year - FROM) % 10 === 9 || year === TO) {
       const shards = writeOutputs([...all.values()]);
       console.log(`  -> catalogue now ${all.size} photos in ${shards} shards`);
     }
   }
+  // Filter the new photos the same way the existing ones were curated.
+  console.log('Curating (removing portraits, close-ups, interiors…)');
+  const { curate } = require('./curate-photos.js');
+  const { kept, rejected } = await curate([...all.values()]);
+  writeOutputs(kept);
+  const prevRejected = fs.existsSync(REJECTED) ? JSON.parse(fs.readFileSync(REJECTED, 'utf8')).photos || [] : [];
+  const byId = new Map(prevRejected.map((p) => [p.id, p]));
+  rejected.forEach((p) => byId.set(p.id, p));
+  fs.writeFileSync(REJECTED, JSON.stringify({ count: byId.size, photos: [...byId.values()] }) + '\n');
+  console.log(`Kept ${kept.length} photos, ${rejected.length} rejected this run.`);
+  console.log('Tip: new photos the rules can\'t judge are rejected as "no sign of a place";');
+  console.log('add their ids to "keep" in data/curation.json to bring them back.');
 }
 
 if (require.main === module) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }
 
-module.exports = { photoYear, caption, cleanCaption, credit, toPhoto, stripHtml };
+module.exports = { photoYear, caption, cleanCaption, credit, toPhoto, stripHtml, writeOutputs };

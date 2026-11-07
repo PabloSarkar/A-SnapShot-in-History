@@ -72,6 +72,20 @@ It caps how many photos any one photographer or archive can contribute per year,
 
 Commit `data/photos.json` and `data/photos/` to deploy.
 
+#### Curation: keeping only photos of places
+
+`scripts/curate-photos.js` filters the catalogue down to photos of recognisable places: streets, squares, landscapes, buildings, harbours, stations and events. It removes portraits, family snapshots, interiors, close-ups, documents, animals, satellite and survey frames, and grainy low-resolution scans.
+
+```bash
+node scripts/curate-photos.js --dry-run   # see what would be removed and why
+node scripts/curate-photos.js             # apply it
+```
+
+- It reads each photo's Commons categories and size (cached in `data/.build-cache/meta.json`).
+- `data/curation.json` holds manual decisions from looking at every photo. Its `reject` and `keep` lists always override the automatic rules.
+- Removed photos are listed with a reason in `data/photos-rejected.json`. To bring one back, move its id to `keep` and re-run.
+- `build-photos.js` runs the same curation automatically, so new photos are filtered too.
+
 **Credits:** every photo has its own licence, often CC BY or CC BY-SA, which require attribution. The reveal shows the photographer and licence, with a link to the Commons page.
 
 `js/data.js` also has a commented guide to the **Historypin API** (bounding-box queries).
