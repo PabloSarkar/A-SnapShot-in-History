@@ -17,6 +17,9 @@
           integrity="sha384-fS13P48RBFel+cPUp5960AhzvtEr64LerQ00neZuM+Hi/VDxxemdQnN7IcWPYvPb"
           crossorigin="anonymous"></script>
 
+  <!-- 2,500+ places for the five rounds, built by scripts/build-pinpoint-places.js -->
+  <script src="./js/pinpoint-places.js?v=20261107e"></script>
+
   <style>
     /* ===================================================================
      * Pinpoint — styles
@@ -284,7 +287,8 @@
         <thead><tr><th>Round</th><th>Places</th><th class="num">Multiplier</th></tr></thead>
         <tbody id="rules"></tbody>
       </table>
-      <p class="fine">Up to 1,000 points per place depending on distance, multiplied by the round. Maximum 10,000.</p>
+      <p class="fine">Up to 1,000 points per place depending on distance, multiplied by the round. Maximum 10,000.
+        Place data: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0).</p>
     </div>
   </div>
 
@@ -329,16 +333,11 @@
      * LOCATION POOLS — one per round, easiest to hardest.
      * Each entry: name, where (country / region shown in the prompt), lat, lng.
      *
-     * PRODUCTION: these hand-picked prototypes would be replaced by thousands
-     * of places loaded at start-up, e.g.
-     *
-     *   const pools = await fetch('./data/pinpoint-pools.json').then(r => r.json());
-     *   poolRound1 = pools.round1;  // ...round5
-     *
-     * built offline from a gazetteer such as GeoNames (cities15000 for the
-     * easy tiers, filtered by population / capital flags; cities1000 plus
-     * island & settlement features for the hard tiers). Keep the same shape.
-     * Larger pools also make daily challenges repeat far less often.
+     * The full pools (500+ places per round, 2,500+ in total) are loaded from
+     * js/pinpoint-places.js, which scripts/build-pinpoint-places.js generates
+     * from GeoNames (CC BY 4.0). To add more, edit that script's tier rules
+     * and re-run it. The short hand-picked lists below are only a fallback in
+     * case that file can't be loaded; they are also part of the full pools.
      * ===================================================================== */
     var poolRound1 = [ // famous global megacities
       { name: 'Tokyo', where: 'Japan', lat: 35.6762, lng: 139.6503 },
@@ -400,6 +399,18 @@
       { name: 'Funafuti', where: 'Tuvalu', lat: -8.5243, lng: 179.1942 },
       { name: 'Stanley', where: 'Falkland Islands', lat: -51.6977, lng: -57.8517 }
     ];
+
+    (function useFullPools() {
+      var data = window.PINPOINT_PLACES;
+      if (!data || !Array.isArray(data.rounds) || data.rounds.length !== 5) return;
+      var pools = data.rounds.map(function (round) {
+        return (round || []).filter(function (p) {
+          return Array.isArray(p) && p[0] && isFinite(p[2]) && isFinite(p[3]);
+        }).map(function (p) { return { name: p[0], where: p[1] || '', lat: +p[2], lng: +p[3] }; });
+      });
+      if (pools.some(function (p) { return p.length < 5; })) return;
+      poolRound1 = pools[0]; poolRound2 = pools[1]; poolRound3 = pools[2]; poolRound4 = pools[3]; poolRound5 = pools[4];
+    })();
 
     /* Rounds get harder automatically and are worth more. */
 
@@ -756,7 +767,8 @@
       frame(place, g);
 
       el.sheetPoints.textContent = (points > 0 ? '+' : '') + fmt(points) + ' points';
-      el.sheetSub.textContent = g ? place.name + ', ' + place.where : 'Time’s up. ' + place.name + ' is marked on the globe.';
+      var fullName = place.name + (place.where ? ', ' + place.where : '');
+      el.sheetSub.textContent = g ? fullName : 'Time’s up. ' + place.name + ' is marked on the globe.';
       el.stDist.textContent = g ? fmtKm(km) : '—';
       el.stBase.textContent = fmt(base) + ' / 1,000';
       el.stMult.textContent = '×' + round.mult;

@@ -74,7 +74,22 @@ There are five rounds, with 25 seconds each to tap a named place on a blank 3D g
   ```
 
   🟩 is within about 200 km, 🟨 is mid-range, 🟥 is far and ⬛ is timed out.
-- **Adding places:** the five pools (`poolRound1` to `poolRound5`) are at the top of the script in `pinpoint.html`, with a comment on loading thousands of places from JSON for production.
+- **Places:** 2,597 in total, at least 517 per round, from 91–131 countries per round. They live in `js/pinpoint-places.js`, generated from [GeoNames](https://www.geonames.org/) (CC BY 4.0) by `scripts/build-pinpoint-places.js`:
+
+  | Round | Rule |
+  |---|---|
+  | 1 Very easy | the most populous cities (500k+) |
+  | 2 Easy | national capitals, then state and province capitals |
+  | 3 Medium | other cities of 100k–1.5M people |
+  | 4 Hard | towns of 20k–200k at least 150 km from any city of 100k+ |
+  | 5 Very hard | the most isolated settlements, plus small island territories |
+
+  Each round caps how many places one country can contribute (16–32) and keeps places 25–90 km apart, so a round is never one country's suburbs. The 50 hand-picked places in `pinpoint.html` are always included in their rounds, and are the fallback if the places file can't load. To rebuild, or after changing the rules:
+
+  ```bash
+  npm install --no-save all-the-cities@3.1.0
+  node scripts/build-pinpoint-places.js
+  ```
 - **Controls:** drag to spin, scroll or pinch to zoom, and tap or click to guess.
 
 ## Game modes
@@ -170,7 +185,9 @@ node scripts/curate-photos.js             # apply it
 ```
 index.html        The Daily Dose hub: one card per game, Sign in top right
 signin.html       sign in / create account (username + password)
-pinpoint.html     Pinpoint globe game (single file)
+pinpoint.html     Pinpoint globe game
+js/pinpoint-places.js  2,597 Pinpoint places (generated)
+scripts/build-pinpoint-places.js  builds them from GeoNames
 assets/earth-*    NASA Blue Marble texture + relief map for the globe
 js/account.js     account client for /api
 js/signin.js      sign-in page logic
