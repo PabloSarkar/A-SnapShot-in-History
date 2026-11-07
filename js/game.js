@@ -11,6 +11,14 @@
   var IMAGE_TIMEOUT_MS = 15000;
   var PLACEHOLDER_SRC = './assets/placeholder.svg';
 
+  // Live photos from Wikidata + Commons (js/wikidata-rounds.js). If the fetch
+  // fails or times out, the match uses the embedded set in js/data.js instead.
+  var LIVE_ROUNDS = {
+    enabled: true,
+    timeoutMs: 12000,
+    options: { minYear: YEAR_MIN, maxYear: YEAR_MAX } // e.g. add country: 'Q142' or bbox: {...}
+  };
+
   var Scoring = window.SnapshotScoring;
 
   // ---------------------------------------------------------------- helpers
@@ -55,7 +63,8 @@
         lat: Number(p.lat),
         lng: Number(p.lng),
         actual_year: clamp(Math.round(Number(p.actual_year)), YEAR_MIN, YEAR_MAX),
-        description: p.description || 'Untitled photograph'
+        description: p.description || 'Untitled photograph',
+        source_url: typeof p.source_url === 'string' && /^https:\/\//.test(p.source_url) ? p.source_url : ''
       };
     });
   }
@@ -82,6 +91,7 @@
     reqPin: $('req-pin'), reqYear: $('req-year'), submit: $('submit'),
     resTotal: $('res-total'), resDist: $('res-dist'), resLoc: $('res-loc'),
     resYear: $('res-year'), resTime: $('res-time'), resMeter: $('res-meter'), resDesc: $('res-desc'),
+    resCredit: $('res-credit'),
     next: $('next'),
     startScreen: $('start-screen'), start: $('start'),
     endScreen: $('end-screen'), endTotal: $('end-total'), endMax: $('end-max'),
@@ -376,13 +386,44 @@
   }
 
   // ============================================================ GAME FLOW
+  /** Live rounds first, topped up from the embedded set if there aren't enough. */
+  function loadMatchPhotos() {
+    var embedded = shuffle(validPhotos(window.SNAPSHOT_DATA));
+    var api = window.WikidataRounds;
+    if (!LIVE_ROUNDS.enabled || !api) return Promise.resolve(embedded);
+
+    var opts = {};
+    for (var k in LIVE_ROUNDS.options) opts[k] = LIVE_ROUNDS.options[k];
+    opts.timeoutMs = LIVE_ROUNDS.timeoutMs;
+    return api.fetchHistoricalRounds(ROUNDS_PER_MATCH, opts)
+      .then(function (live) { return validPhotos(live).concat(embedded); })
+      .catch(function (err) {
+        console.warn('Live photos unavailable; using the built-in set.', err);
+        return embedded;
+      });
+  }
+
+  var starting = false;
   function startMatch() {
-    var pool = validPhotos(window.SNAPSHOT_DATA);
-    if (!pool.length) {
-      alert('No valid photos found in the dataset (js/data.js).');
-      return;
-    }
-    state.photos = shuffle(pool).slice(0, ROUNDS_PER_MATCH);
+    if (starting) return;
+    starting = true;
+    var buttons = [el.start, el.again];
+    var labels = buttons.map(function (b) { return b.textContent; });
+    buttons.forEach(function (b) { b.disabled = true; b.textContent = 'Finding photographs…'; });
+
+    loadMatchPhotos().then(function (pool) {
+      starting = false;
+      buttons.forEach(function (b, i) { b.disabled = false; b.textContent = labels[i]; });
+      if (!pool.length) {
+        alert('No valid photos found in the dataset (js/data.js).');
+        return;
+      }
+      beginMatch(pool.slice(0, ROUNDS_PER_MATCH));
+    });
+  }
+
+  function beginMatch(photos) {
+    state.photos = photos;
     state.round = 0;
     state.total = 0;
     state.history = [];
@@ -434,6 +475,8 @@
     el.resYear.textContent = formatYearDiff(result.yearDiff, actual.year);
     el.resTime.textContent = fmt(result.timeScore);
     el.resDesc.textContent = photo.description;
+    el.resCredit.hidden = !photo.source_url;
+    if (photo.source_url) el.resCredit.href = photo.source_url;
     el.next.textContent = state.round + 1 >= state.photos.length ? 'See results' : 'Next round';
 
     el.guessControls.classList.add('hidden');

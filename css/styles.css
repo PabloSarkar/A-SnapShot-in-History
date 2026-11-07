@@ -303,6 +303,8 @@ button:disabled { cursor: not-allowed; }
   transition: width 0.7s cubic-bezier(.2, .8, .2, 1);
 }
 .res-desc { margin-top: 0.5rem; font-size: 0.9rem; color: var(--paper); max-width: 70ch; }
+.res-credit { display: inline-block; margin-top: 0.25rem; font-size: 0.78rem; color: var(--paper-dim); text-decoration: underline; text-underline-offset: 2px; }
+.res-credit:hover { color: var(--amber); }
 
 /* ---------------------------------------------------------------- overlays */
 .overlay {

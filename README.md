@@ -33,7 +33,24 @@ The scoring logic lives in `js/scoring.js` as pure functions you can test with N
 
 The dataset lives in `js/data.js`. **The bundled `image_url` values are placeholders** (`https://unsplash.com` is a web page, not an image), so every round shows the "couldn't be loaded" card until you replace them with direct image links. You can link to Wikimedia Commons files or add images under `./photos/` and reference them relatively.
 
-That same file has a commented guide to pulling more photos from the **Wikidata SPARQL API** (P18 image, P625 coordinates, P571 inception) and the **Historypin API** (bounding-box queries).
+### Live photos from Wikidata and Commons
+
+`js/wikidata-rounds.js` fetches fresh rounds each match. It asks the Wikidata Query Service for places that have an image (P18), coordinates (P625) and a year-precise inception (P571) or point in time (P585). It then uses the Wikimedia Commons API to get a direct, resized JPEG or PNG URL for each one. If either service is unreachable, the game falls back to the embedded set.
+
+Adjust it through `LIVE_ROUNDS` at the top of `js/game.js`:
+
+```js
+options: { minYear: 1900, maxYear: 1980 }                         // a narrower era
+options: { country: 'Q142' }                                      // France only
+options: { bbox: { south: 36, west: -10, north: 60, east: 20 } }  // a map region
+options: { classes: ['Q12280', 'Q12518'] }                        // bridges and towers
+```
+
+The module also works in Node 18+ or a serverless function (`require('./js/wikidata-rounds.js')`), for example to pre-build a static `photos.json`.
+
+Caveat: the year is when the *place* was built or established, not when the photo was taken. A recent photo of a 1930 bridge still scores against 1930.
+
+`js/data.js` also has a commented guide to the **Historypin API** (bounding-box queries).
 
 ## Files
 
@@ -41,7 +58,8 @@ That same file has a commented guide to pulling more photos from the **Wikidata 
 index.html        layout and screens
 css/styles.css    component styles
 js/scoring.js     Haversine and scoring (pure functions)
-js/data.js        photo dataset and API extension docs
+js/data.js        embedded fallback photos and Historypin docs
+js/wikidata-rounds.js  live rounds from Wikidata SPARQL and Commons
 js/game.js        game loop, map, photo zoom/pan
 assets/           favicon and image placeholder
 _headers          Cloudflare Pages headers

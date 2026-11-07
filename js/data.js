@@ -78,47 +78,13 @@ window.SNAPSHOT_DATA = [
  * build time instead and loading that — it is faster and kinder to the APIs.)
  *
  * -----------------------------------------------------------------------------
- * 1) Wikidata SPARQL API  — https://query.wikidata.org/sparql
+ * 1) Wikidata SPARQL API + Wikimedia Commons API  — IMPLEMENTED
  * -----------------------------------------------------------------------------
- * Filter for items that have:
- *   P18  image                (Commons file name)
- *   P625 coordinate location  (WKT "Point(lng lat)")
- *   P571 inception            (date; we keep 1900–2020)
- *
- *   const SPARQL = `
- *     SELECT ?item ?itemLabel ?image ?coord ?inception WHERE {
- *       ?item wdt:P18  ?image ;
- *             wdt:P625 ?coord ;
- *             wdt:P571 ?inception .
- *       FILTER(YEAR(?inception) >= 1900 && YEAR(?inception) <= 2020)
- *       SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
- *     }
- *     LIMIT 200`;
- *
- *   async function loadFromWikidata() {
- *     const url = 'https://query.wikidata.org/sparql?format=json&query=' +
- *                 encodeURIComponent(SPARQL);
- *     const res = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } });
- *     if (!res.ok) throw new Error('Wikidata ' + res.status);
- *     const json = await res.json();
- *     return json.results.bindings.map((b, i) => {
- *       // "Point(2.2945 48.8584)" -> lng, lat  (note: WKT is lng first)
- *       const [lng, lat] = b.coord.value.replace(/Point\(|\)/g, '').split(' ').map(Number);
- *       return {
- *         id: 'wd-' + b.item.value.split('/').pop(),
- *         // P18 returns a Special:FilePath URL; append ?width= for a sized thumbnail
- *         image_url: b.image.value.replace(/^http:/, 'https:') + '?width=1600',
- *         lat, lng,
- *         actual_year: new Date(b.inception.value).getUTCFullYear(),
- *         description: b.itemLabel.value
- *       };
- *     }).filter(p => isFinite(p.lat) && isFinite(p.lng) && isFinite(p.actual_year));
- *   }
- *
- * Caveat: P571 is the inception of the *thing* (building, event, artwork), not
- * necessarily the date the photo was taken. For truer "photo year" data, query
- * Wikimedia Commons structured data (P571 / P8642 on the MediaInfo entity) or
- * restrict to items that are themselves photographs (wdt:P31 wd:Q125191).
+ * See js/wikidata-rounds.js. It is already wired into the game: every match
+ * tries to fetch live rounds first (items with P18 image, P625 coordinates
+ * and a year-precise P571 inception / P585 point in time) and falls back to
+ * the entries above if the request fails. Configure it via LIVE_ROUNDS at the
+ * top of js/game.js (year range, country, bounding box, classes).
  *
  * -----------------------------------------------------------------------------
  * 2) Historypin API  — https://www.historypin.org
@@ -158,7 +124,7 @@ window.SNAPSHOT_DATA = [
  * -----------------------------------------------------------------------------
  *   (async () => {
  *     try {
- *       const extra = await loadFromWikidata();
+ *       const extra = await loadFromHistorypin({ south: 36, west: -10, north: 60, east: 20 });
  *       window.SNAPSHOT_DATA.push(...extra);
  *     } catch (err) {
  *       console.warn('Extra photos unavailable, using built-in set.', err);
