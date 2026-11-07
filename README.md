@@ -11,6 +11,8 @@ Static HTML + vanilla JS + Tailwind (CDN) + Leaflet/OpenStreetMap. No build step
 - **`/`** (`index.html`) is the games hub: a "Play today" page with one card per game. Each card opens that game's own menu.
 - **`/snapshot`** (`snapshot.html`) is the photo game. Its menu has a "‹ All games" link back to the hub.
 
+- **`/pinpoint`** (`pinpoint.html`) is a quick-fire geography game on a 3D globe (see below).
+
 Timeline and Older or Newer show on the hub as "Coming soon" cards. To add a game, copy a `.game-card` block in `index.html`, point its `href` at the game's page and give it a colour in `css/hub.css`.
 
 ## Accounts
@@ -44,6 +46,26 @@ To see who has signed up, open the database's **Console** tab in Cloudflare and 
 ```bash
 npx wrangler pages dev . --d1 DB
 ```
+
+## Pinpoint
+
+There are five rounds, with 25 seconds each to tap a named place on a blank 3D globe.
+
+- **The globe:** NASA Blue Marble imagery (public domain, in `assets/`), with no borders, labels or city lights. It runs on [globe.gl](https://github.com/vasturiano/globe.gl) 2.46.1 from jsDelivr.
+- **Getting harder:** each round draws from a harder pool and is worth more:
+
+| Round | Pool | Multiplier |
+|---|---|---|
+| 1 | Very easy: megacities | ×1 |
+| 2 | Easy: major capitals | ×1.5 |
+| 3 | Medium: regional hubs | ×2 |
+| 4 | Hard: smaller or remote cities | ×2.5 |
+| 5 | Very hard: obscure towns and islands | ×3 |
+
+- **Scoring:** the base score is 0–1,000, from the Haversine distance. A guess within 10 km scores 1,000, decaying to about 520 at 1,000 km. That base is multiplied by the round's multiplier, so a perfect game is 10,000. Running out of time scores 0.
+- **Results:** a breakdown per round and a **Share results** button that copies an emoji summary (🟢🟡🔴, ⏱️ for a timeout).
+- **Adding places:** the five pools (`poolRound1` to `poolRound5`) are at the top of the script in `pinpoint.html`, with a comment on loading thousands of places from JSON for production.
+- **Controls:** drag to spin, scroll or pinch to zoom, and tap or click to guess.
 
 ## Game modes
 
@@ -138,6 +160,8 @@ node scripts/curate-photos.js             # apply it
 ```
 index.html        The Daily Dose hub: one card per game, Sign in top right
 signin.html       sign in / create account (username + password)
+pinpoint.html     Pinpoint globe game (single file)
+assets/earth-*    NASA Blue Marble texture + relief map for the globe
 js/account.js     account client for /api
 js/signin.js      sign-in page logic
 functions/api/    accounts API (Cloudflare Pages Functions + D1)

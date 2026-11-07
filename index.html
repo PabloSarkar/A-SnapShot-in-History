@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="./css/hub.css?v=20261107b" />
+  <link rel="stylesheet" href="./css/hub.css?v=20261107c" />
 </head>
 <body>
   <header class="hub-top">
@@ -70,6 +70,42 @@
         </span>
         <span class="game-name">Snapshot</span>
         <span class="game-desc">One photograph. Pin where it was taken and guess the year.</span>
+      </a>
+
+      <!-- ============================== PINPOINT ============================== -->
+      <a class="game-card card-pinpoint" href="./pinpoint.html">
+        <span class="game-art" aria-hidden="true">
+          <svg viewBox="0 0 300 220">
+            <defs>
+              <radialGradient id="pp-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="70%" stop-color="#7fb2ff" stop-opacity=".35" />
+                <stop offset="100%" stop-color="#7fb2ff" stop-opacity="0" />
+              </radialGradient>
+              <clipPath id="pp-clip"><circle cx="150" cy="114" r="82" /></clipPath>
+            </defs>
+            <circle cx="150" cy="114" r="100" fill="url(#pp-glow)" />
+            <circle cx="150" cy="114" r="82" fill="#1f5fa8" />
+            <g clip-path="url(#pp-clip)" fill="#5fa35a">
+              <path d="M96 56c18-10 40-6 52 6 8 8 2 20-8 24-12 5-14 16-6 26 8 10 4 24-10 28-14 4-22-6-26-18-4-12-16-14-20-26-4-14 4-32 18-40Z" />
+              <path d="M178 70c14-6 30-2 40 8 12 12 16 30 8 44-6 10-18 12-26 22-8 10-4 26-14 32-12 6-22-6-22-20 0-12-8-20-10-32-2-14 6-28 24-34Z" />
+              <path d="M116 168c10-4 22 0 28 8 4 6-2 14-10 14-10 0-20-4-22-12 0-4 1-8 4-10Z" />
+            </g>
+            <g fill="none" stroke="#ffffff" stroke-opacity=".18" stroke-width="1.5">
+              <ellipse cx="150" cy="114" rx="82" ry="30" />
+              <ellipse cx="150" cy="114" rx="34" ry="82" />
+            </g>
+            <g transform="translate(184 62)">
+              <path d="M18 0C8 0 0 8 0 18c0 13 18 31 18 31s18-18 18-31C36 8 28 0 18 0Z" fill="#f2b84b" stroke="#0b1222" stroke-width="3" />
+              <circle cx="18" cy="18" r="6.5" fill="#0b1222" />
+            </g>
+            <g transform="translate(150 114)" fill="none" stroke="#e8553f" stroke-width="3" stroke-linecap="round">
+              <circle r="11" /><path d="M0 -20v8M0 12v8M-20 0h8M12 0h8" />
+            </g>
+            <path d="M150 114 Q178 72 202 92" fill="none" stroke="#ffd36b" stroke-width="2.5" stroke-dasharray="5 5" />
+          </svg>
+        </span>
+        <span class="game-name">Pinpoint</span>
+        <span class="game-desc">Five places, a blank globe, 25 seconds each. It gets harder every round.</span>
       </a>
 
       <!-- ============================== TIMELINE ============================== -->
@@ -137,7 +173,7 @@
     Photographs from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>
   </footer>
 
-  <script src="./js/account.js?v=20261107b"></script>
+  <script src="./js/account.js?v=20261107c"></script>
   <script>
     // Show who's signed in (if accounts are switched on).
     window.SnapshotAccount.init().then(function (user) {
