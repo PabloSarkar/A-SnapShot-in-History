@@ -35,30 +35,34 @@ The dataset lives in `js/data.js`. **The bundled `image_url` values are placehol
 
 ### Where the photos come from
 
-1. **`data/photos.json`** is the main source: a pre-built list of real, geolocated, dated photos from Wikidata and Wikimedia Commons. It loads instantly from your own site.
-2. **Live Wikidata queries** (`js/wikidata-rounds.js`) are **off by default**. Each query takes about 10–60 s, which is too slow to run at the start of a match. Turn them on with `LIVE_ROUNDS.enabled` in `js/game.js`.
-3. **The embedded entries in `js/data.js`** are a last resort. Their image URLs are placeholders.
+The game uses a catalogue of real photographs from **Wikimedia Commons**, each with the **date and place the photo itself was taken**.
 
-To refresh or enlarge the photo list:
+1. **`data/photos/`** is the main source: the catalogue split into shards of 200 photos, plus `manifest.js`. The game loads two random shards (about 400 photos) and loads more as you play through them, so thousands of photos never have to be downloaded at once.
+2. **Live Wikidata queries** (`js/wikidata-rounds.js`) are **off by default**. They're slow (10–60 s) and use when a *place* was built rather than when the photo was taken. Turn them on with `LIVE_ROUNDS.enabled` in `js/game.js`.
+3. **The embedded entries in `js/data.js`** are a last resort.
+
+#### Building or growing the catalogue
 
 ```bash
-node scripts/build-photos.js 20
+node scripts/build-photos.js --per-year 30
 ```
 
-The number is roughly how many photos to keep per place type. The script queries each type, gets direct 1280px image URLs from Commons, checks that every image loads, and writes `data/photos.json`. It takes a few minutes. Commit the new file to deploy it.
+For each year from 1900 to 2020, the script searches Commons' "*year* photographs" category tree for photos with coordinates. A photo is kept only if:
 
-`fetchHistoricalRounds(limit, options)` takes these options, in the build script or live:
+- its own date is precise to the year ("1950s" and "circa 1950" are rejected) and matches the category year,
+- it's a JPEG or PNG at least 500 px wide,
+- it has real coordinates.
 
-```js
-{ minYear: 1900, maxYear: 1980 }                         // a narrower era
-{ country: 'Q142' }                                      // France only
-{ bbox: { south: 36, west: -10, north: 60, east: 20 } }  // a map region
-{ classes: ['Q12280', 'Q12518'] }                        // bridges and towers
-```
+It caps how many photos any one photographer or archive can contribute per year, then writes `data/photos.json` (the master list) and the shards.
 
-Wikimedia only serves resized images at standard widths (250, 330, 500, 960, 1280, 1920). Other widths, such as 1600, return an error, so the module rounds the requested width up to the next of these.
+- **Bigger catalogue:** `--per-year 60`.
+- **Only some years:** `--from 1940 --to 1960`.
+- **Resuming:** finished years are cached in `data/.build-cache/`, so a run you stop can be picked up again. Use `--refresh` to re-fetch them instead.
+- **Run time:** about 1 request per second, roughly 30–60 minutes for the full range.
 
-Caveat: the year is when the *place* was built or established, not when the photo was taken. A recent photo of a 1950 stadium still scores against 1950.
+Commit `data/photos.json` and `data/photos/` to deploy.
+
+**Credits:** every photo has its own licence, often CC BY or CC BY-SA, which require attribution. The reveal shows the photographer and licence, with a link to the Commons page.
 
 `js/data.js` also has a commented guide to the **Historypin API** (bounding-box queries).
 
@@ -70,8 +74,9 @@ css/styles.css    component styles
 js/scoring.js     Haversine and scoring (pure functions)
 js/data.js        embedded fallback photos and Historypin docs
 js/wikidata-rounds.js  Wikidata SPARQL + Commons fetcher
-scripts/build-photos.js  builds data/photos.json
-data/photos.json  pre-built photo list (main source)
+scripts/build-photos.js  builds the photo catalogue from Wikimedia Commons
+data/photos.json  master photo catalogue
+data/photos/      manifest.js + shard-NNN.js (what the game loads)
 js/game.js        game loop, map, photo zoom/pan
 assets/           favicon and image placeholder
 _headers          Cloudflare Pages headers
