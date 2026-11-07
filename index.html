@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="./css/hub.css?v=20261107g" />
+  <link rel="stylesheet" href="./css/hub.css?v=20261107h" />
 </head>
 <body>
   <header class="hub-top">
@@ -29,10 +29,34 @@
   <main class="hub-main">
     <div class="hub-head">
       <h1 class="hub-h">Play today</h1>
-      <p class="hub-date" id="hub-date" aria-label="Today’s date">
-        <span class="hub-date-day" id="hub-day"></span>
-        <span id="hub-month"></span>
-      </p>
+      <div class="hub-date-wrap">
+        <button type="button" class="hub-date" id="hub-date" aria-expanded="false" aria-controls="archive" aria-haspopup="dialog">
+          <span class="hub-date-day" id="hub-day"></span>
+          <span id="hub-month"></span>
+          <svg class="hub-date-caret" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
+        <!-- Archive calendar (js/hub-calendar.js) -->
+        <div class="archive" id="archive" role="dialog" aria-label="Daily challenge archive" hidden>
+          <div class="cal-head">
+            <button type="button" class="cal-nav" id="cal-prev" aria-label="Previous month">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <p class="cal-title" id="cal-title" aria-live="polite"></p>
+            <button type="button" class="cal-nav" id="cal-next" aria-label="Next month">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <p class="cal-legend" aria-hidden="true">
+            <span><i class="dot is-done"></i>Played</span><span><i class="dot is-progress"></i>In progress</span><span><i class="dot is-none"></i>Not played</span>
+          </p>
+          <div class="cal-day">
+            <p class="cal-day-title" id="cal-day-title"></p>
+            <ul class="cal-games" id="cal-games"></ul>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="hub-grid">
@@ -191,6 +215,8 @@
     Photographs from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>
   </footer>
 
+  <script src="./js/daily-archive.js?v=20261107h"></script>
+  <script src="./js/hub-calendar.js?v=20261107i"></script>
   <script src="./js/account.js?v=20261107g"></script>
   <script>
     // Show who's signed in (if accounts are switched on).
@@ -201,14 +227,6 @@
       document.getElementById('hub-account').classList.add('is-signed-in');
     });
 
-    // Today's date for the badge, in the visitor's language and time zone.
-    (function () {
-      var d = new Date();
-      document.getElementById('hub-day').textContent = d.getDate();
-      document.getElementById('hub-month').textContent = d.toLocaleDateString(undefined, { month: 'long' });
-      document.getElementById('hub-date').setAttribute('aria-label',
-        'Today: ' + d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }));
-    })();
-  </script>
+</script>
 </body>
 </html>

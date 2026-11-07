@@ -69,12 +69,18 @@ a { color: inherit; }
   font-size: 1.05rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
   color: #3d4a50;
 }
+.hub-date-wrap { position: relative; }
 .hub-date {
   display: inline-flex; align-items: center; gap: 10px;
-  padding: 6px 16px 6px 6px; border-radius: 999px;
+  padding: 6px 12px 6px 6px; border-radius: 999px; border: 1px solid transparent;
   background: var(--surface);
-  font-weight: 700; color: var(--ink);
+  font: inherit; font-weight: 700; color: var(--ink); cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
+.hub-date:hover { background: #e2d8c4; }
+.hub-date[aria-expanded='true'] { border-color: rgba(28, 42, 51, 0.25); background: #e2d8c4; }
+.hub-date-caret { color: var(--ink-dim); transition: transform 0.15s ease; }
+.hub-date[aria-expanded='true'] .hub-date-caret { transform: rotate(180deg); }
 .hub-date-day {
   display: grid; place-items: center;
   width: 30px; height: 30px; border-radius: 50%;
@@ -209,3 +215,61 @@ a.game-card:hover .game-art svg { transform: rotate(-1.5deg) scale(1.02); }
 .auth-note { margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: var(--surface); font-size: 0.9rem; line-height: 1.45; }
 [hidden] { display: none !important; }
 .auth-link { display: block; margin-top: 20px; text-align: center; text-decoration: none; }
+
+/* ========================================================= ARCHIVE CALENDAR */
+.archive {
+  position: absolute; z-index: 50; top: calc(100% + 8px); right: 0;
+  width: min(360px, calc(100vw - 32px)); padding: 14px;
+  background: #fffdf8; border: 1px solid rgba(28, 42, 51, 0.14); border-radius: 16px;
+  box-shadow: 0 18px 44px -18px rgba(28, 42, 51, 0.45);
+}
+.cal-head { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; gap: 4px; }
+.cal-title { text-align: center; font-weight: 700; }
+.cal-nav {
+  width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px;
+  background: transparent; color: var(--ink); cursor: pointer;
+}
+.cal-nav:hover:not(:disabled) { background: var(--surface); }
+.cal-nav:disabled { color: rgba(28, 42, 51, 0.25); cursor: default; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: 8px; }
+.cal-wd { text-align: center; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-dim); padding: 2px 0 4px; }
+.cal-cell {
+  height: 44px; display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center;
+  padding: 4px 0 5px; border-radius: 9px; border: 1px solid transparent;
+  background: transparent; font: inherit; font-size: 0.88rem; font-weight: 600; color: var(--ink);
+}
+button.cal-cell { cursor: pointer; }
+button.cal-cell:hover { background: var(--surface); }
+.cal-cell.is-out { color: rgba(28, 42, 51, 0.25); font-weight: 500; }
+.cal-cell.is-today { border-color: rgba(28, 42, 51, 0.35); }
+.cal-cell.is-selected { background: var(--ink); color: #fffdf8; }
+.cal-cell.is-selected:hover { background: #2c3e49; }
+.cal-dots { display: flex; gap: 3px; }
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid #8a949a; background: transparent; }
+.dot.is-done { background: #2c6e63; border-color: #2c6e63; }
+.dot.is-progress { background: linear-gradient(90deg, #c27c0e 50%, transparent 50%); border-color: #c27c0e; }
+.cal-cell.is-selected .dot.is-none { border-color: rgba(255, 253, 248, 0.6); }
+.cal-cell.is-selected .dot.is-done { background: #7fd1bf; border-color: #7fd1bf; }
+.cal-cell.is-selected .dot.is-progress { border-color: #f2b84b; background: linear-gradient(90deg, #f2b84b 50%, transparent 50%); }
+.cal-legend { display: flex; justify-content: center; gap: 14px; margin-top: 10px; font-size: 0.75rem; color: var(--ink-dim); }
+.cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.cal-day { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(28, 42, 51, 0.1); }
+.cal-day-title { font-weight: 700; font-size: 0.92rem; margin-bottom: 8px; }
+.cal-games { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.cal-game {
+  display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; align-items: center; gap: 0 10px;
+  padding: 8px 10px; border-radius: 10px; background: var(--bg);
+}
+.cal-game-name { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 0.92rem; }
+.cal-game-status { grid-column: 1; font-size: 0.8rem; color: var(--ink-dim); padding-left: 13px; }
+.cal-play {
+  grid-column: 2; grid-row: 1 / span 2;
+  padding: 7px 14px; border-radius: 999px; background: var(--ink); color: #fffdf8;
+  font-size: 0.82rem; font-weight: 700; text-decoration: none; white-space: nowrap;
+}
+.cal-play:hover { background: #2c3e49; }
+.cal-play.is-secondary { background: transparent; color: var(--ink); border: 1px solid rgba(28, 42, 51, 0.22); }
+.cal-play.is-secondary:hover { background: var(--surface); }
+@media (max-width: 600px) {
+  .archive { position: fixed; top: auto; left: 12px; right: 12px; bottom: 12px; width: auto; max-height: calc(100dvh - 24px); overflow-y: auto; }
+}

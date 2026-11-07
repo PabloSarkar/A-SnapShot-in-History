@@ -47,6 +47,16 @@ To see who has signed up, open the database's **Console** tab in Cloudflare and 
 npx wrangler pages dev . --d1 DB
 ```
 
+## Daily archive
+
+The date at the top right of the hub opens a calendar of every daily challenge since launch (7 November 2026).
+
+- **Dots:** each day shows one dot per daily game (Snapshot, Pinpoint, Outline): filled means played, half means in progress, empty means not played.
+- **Choosing a day** lists the three games with your result and a **Play**, **Continue** or **View result** button.
+- **Opening a past day:** any game opened with `?date=YYYY-MM-DD` (e.g. `/outline?date=2026-11-20`) plays that day's challenge. Dates before launch, in the future or invalid fall back to today. Each game's start screen links back to the calendar ("Missed a day?"), and `/#archive` opens it directly.
+- **Day boundary:** days are UTC dates, the same for everyone. Results are saved in the browser per game and per day by `js/daily-archive.js`, in `localStorage` key `dailies.<game>`. Results saved before the archive existed are carried over automatically.
+- **Adding a daily game:** add it to `GAMES` in `js/daily-archive.js`, read `?date=` with `DailyArchive.requestedDay()`, and save results with `DailyArchive.write(game, day, { done, summary, ... })`.
+
 ## Pinpoint
 
 There are five rounds, with 25 seconds each to tap a named place on a blank 3D globe.
@@ -213,6 +223,8 @@ js/pinpoint-places.js  2,597 Pinpoint places (generated)
 scripts/build-pinpoint-places.js  builds them from GeoNames
 assets/earth-*    NASA Blue Marble texture + relief map for the globe
 js/account.js     account client for /api
+js/daily-archive.js  shared daily dates, ?date= and per-day results
+js/hub-calendar.js   the hub's archive calendar
 js/signin.js      sign-in page logic
 functions/api/    accounts API (Cloudflare Pages Functions + D1)
 snapshot.html     the Snapshot game (its own menu, rounds and results)

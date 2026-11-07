@@ -14,6 +14,8 @@
 
   <!-- 195 countries: name, latlng, cca2, continent. Built by scripts/build-outline-data.js -->
   <script src="./js/outline-countries.js?v=20261107f"></script>
+  <!-- Daily archive: per-day results + ?date=YYYY-MM-DD -->
+  <script src="./js/daily-archive.js?v=20261107h"></script>
 
   <style>
     /* ===================================================================
@@ -263,6 +265,7 @@
         <li><span>2</span><span>Each wrong guess shows its <b>distance</b>, the <b>direction</b> to the answer, and how <b>close</b> you are.</span></li>
         <li><span>3</span><span>After three guesses, the <b>continent</b> is revealed.</span></li>
       </ul>
+      <p class="fine"><a href="./#archive">Missed a day? Play past challenges from the archive.</a></p>
       <p class="fine">Distances run between country centre points.
         Data: <a href="https://github.com/mledoze/countries" target="_blank" rel="noopener">mledoze/countries</a> (ODbL),
         outlines: <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>.</p>
@@ -276,8 +279,9 @@
     var MAX_GUESSES = 6;
     var HINT_AFTER = 3;                 // continent revealed after this many wrong guesses
     var HALF_EARTH_KM = 20037;          // farthest two points can be: 0% "close"
-    var DAILY_EPOCH = '2026-11-07';     // Outline #1
-    var DAILY_KEY = 'outline.daily.v1';
+    var Archive = window.DailyArchive;   // per-day results + ?date=YYYY-MM-DD archive
+    var DAILY_EPOCH = Archive.LAUNCH;    // Outline #1
+    var ARCHIVE_DAY = Archive.requestedDay(); // null = today's challenge
 
     /* =====================================================================
      * COUNTRY DATA
@@ -306,7 +310,8 @@
     function normalise(s) {
       return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
     }
-    function todayKey() { return new Date().toISOString().slice(0, 10); }
+    function todayKey() { return Archive.today(); }
+    function dailyDay() { return ARCHIVE_DAY || todayKey(); }
     function dailyNumber(day) { return Math.round((Date.parse(day) - Date.parse(DAILY_EPOCH)) / 864e5) + 1; }
     function longDate(day) { return new Date(day + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }); }
     function timeToNextDaily() {
@@ -367,14 +372,13 @@
       var n = dailyNumber(day);
       return order[((n - 1) % order.length + order.length) % order.length];
     }
-    function readDaily() {
-      try { var d = JSON.parse(localStorage.getItem(DAILY_KEY)); return d && d.date === todayKey() ? d : null; } catch (e) { return null; }
-    }
+    function readDaily(day) { return Archive.read('outline', day); }
     function saveDaily() {
       if (state.mode !== 'daily') return;
-      try {
-        localStorage.setItem(DAILY_KEY, JSON.stringify({ date: state.day, guesses: state.guesses.map(function (g) { return g.code; }), done: state.done, won: state.won }));
-      } catch (e) { /* private mode: still playable */ }
+      Archive.write('outline', state.day, {
+        date: state.day, guesses: state.guesses.map(function (g) { return g.code; }), done: state.done, won: state.won,
+        summary: (state.won ? state.guesses.length : 'X') + '/' + MAX_GUESSES   // shown in the hub's archive calendar
+      });
     }
 
     /* ========================================================= silhouette */
@@ -410,16 +414,16 @@
       state.done = false;
       state.won = false;
       if (mode === 'daily') {
-        state.day = todayKey();
+        state.day = dailyDay();
         state.answer = dailyAnswer(state.day);
         el.tbMode.textContent = 'Daily #' + dailyNumber(state.day);
-        var saved = readDaily();
+        var saved = readDaily(state.day);
         if (saved) saved.guesses.forEach(function (code) { if (byCode[code]) state.guesses.push(scoreGuess(byCode[code])); });
         state.won = state.guesses.some(function (g) { return g.correct; });
         state.done = state.won || state.guesses.length >= MAX_GUESSES;
       } else {
         state.day = null;
-        var avoid = dailyAnswer(todayKey());
+        var avoid = dailyAnswer(dailyDay());
         var pool = answers.filter(function (c) { return c !== avoid && c !== state.answer; });
         state.answer = pool[Math.floor(Math.random() * pool.length)];
         el.tbMode.textContent = 'Practice';
@@ -495,7 +499,9 @@
           : 'Not this time. The answer was ' + state.answer.name + '.';
         el.practiceBtn2.textContent = state.mode === 'daily' ? 'Practice' : 'Play again';
         el.note.className = 'note';
-        el.note.textContent = state.mode === 'daily' ? 'Next daily challenge in ' + timeToNextDaily() + '.' : '';
+        el.note.textContent = state.mode !== 'daily' ? '' : ARCHIVE_DAY
+          ? 'Missed other days? Open the calendar on the home page.'
+          : 'Next daily challenge in ' + timeToNextDaily() + '.';
       }
     }
 
@@ -613,16 +619,16 @@
 
     /* ========================================================== start menu */
     function renderStart() {
-      var day = todayKey(), saved = readDaily();
+      var day = dailyDay(), saved = readDaily(day);
       el.dailyTitle.textContent = 'Daily challenge #' + dailyNumber(day);
       if (saved && saved.done) {
-        el.dailyDesc.textContent = 'Completed. Next challenge in ' + timeToNextDaily() + '.';
+        el.dailyDesc.textContent = ARCHIVE_DAY ? 'Completed. View your result.' : 'Completed. Next challenge in ' + timeToNextDaily() + '.';
         el.dailySide.textContent = saved.won ? saved.guesses.length + '/' + MAX_GUESSES : 'X/' + MAX_GUESSES;
       } else if (saved && saved.guesses.length) {
         el.dailyDesc.textContent = 'In progress: ' + saved.guesses.length + ' of ' + MAX_GUESSES + ' guesses used.';
         el.dailySide.textContent = 'Continue';
       } else {
-        el.dailyDesc.textContent = 'The same country for everyone today.';
+        el.dailyDesc.textContent = ARCHIVE_DAY ? 'From the archive. The country everyone got that day.' : 'The same country for everyone today.';
         el.dailySide.textContent = longDate(day).replace(/ \d{4}$/, '');
       }
     }

@@ -19,6 +19,8 @@
 
   <!-- 2,500+ places for the five rounds, built by scripts/build-pinpoint-places.js -->
   <script src="./js/pinpoint-places.js?v=20261107e"></script>
+  <!-- Daily archive: per-day results + ?date=YYYY-MM-DD -->
+  <script src="./js/daily-archive.js?v=20261107h"></script>
 
   <style>
     /* ===================================================================
@@ -287,6 +289,7 @@
         <thead><tr><th>Round</th><th>Places</th><th class="num">Multiplier</th></tr></thead>
         <tbody id="rules"></tbody>
       </table>
+      <p class="fine"><a href="./#archive">Missed a day? Play past challenges from the archive.</a></p>
       <p class="fine">Up to 1,000 points per place depending on distance, multiplied by the round. Maximum 10,000.
         Place data: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0).</p>
     </div>
@@ -431,11 +434,16 @@
      * a small PRNG that picks one place per pool. One attempt per day, kept
      * in localStorage. If the page is reloaded mid-round, that round counts
      * as timed out (so a hard round can't be skipped by reloading).
+     * Past days can be played from the archive: pinpoint.html?date=YYYY-MM-DD
+     * (results are kept per day by js/daily-archive.js).
      * ===================================================================== */
-    var DAILY_EPOCH = '2026-11-07';          // Daily #1
-    var DAILY_KEY = 'pinpoint.daily.v1';
+    var Archive = window.DailyArchive;
+    var DAILY_EPOCH = Archive.LAUNCH;        // Daily #1
+    var ARCHIVE_DAY = Archive.requestedDay(); // null = today's challenge
 
-    function todayKey() { return new Date().toISOString().slice(0, 10); }
+    function todayKey() { return Archive.today(); }
+    /** The day the Daily button plays: an archive day, or today. */
+    function dailyDay() { return ARCHIVE_DAY || todayKey(); }
     function dailyNumber(day) { return Math.round((Date.parse(day) - Date.parse(DAILY_EPOCH)) / 864e5) + 1; }
     function hashStr(s) {
       var h = 0x811c9dc5;
@@ -454,14 +462,10 @@
       var rng = mulberry32(hashStr('pinpoint:' + day));
       return ROUNDS.map(function (r) { return r.pool[Math.floor(rng() * r.pool.length)]; });
     }
-    function readDaily() {
-      try {
-        var d = JSON.parse(localStorage.getItem(DAILY_KEY));
-        return d && d.date === todayKey() ? d : null;
-      } catch (e) { return null; }
-    }
+    function readDaily(day) { return Archive.read('pinpoint', day); }
     function writeDaily(d) {
-      try { localStorage.setItem(DAILY_KEY, JSON.stringify(d)); } catch (e) { /* private mode: play still works */ }
+      d.summary = fmt(d.total) + ' pts';   // shown in the hub's archive calendar
+      Archive.write('pinpoint', d.date, d);
     }
     function timeToNextDaily() {
       var now = new Date();
@@ -622,17 +626,17 @@
       el.rules.innerHTML = ROUNDS.map(function (r, i) {
         return '<tr><td>' + (i + 1) + ' · ' + esc(r.name) + '</td><td class="muted">' + esc(r.places) + '</td><td class="num">×' + r.mult + '</td></tr>';
       }).join('');
-      var day = todayKey(), saved = readDaily();
+      var day = dailyDay(), saved = readDaily(day);
       el.dailyTitle.textContent = 'Daily challenge #' + dailyNumber(day);
       if (saved && saved.done) {
-        el.dailyDesc.textContent = 'Completed. Next challenge in ' + timeToNextDaily() + '.';
+        el.dailyDesc.textContent = ARCHIVE_DAY ? 'Completed. View your result.' : 'Completed. Next challenge in ' + timeToNextDaily() + '.';
         el.dailySide.textContent = fmt(saved.total) + ' pts';
       } else if (saved && (saved.results.length || saved.inRound != null)) {
         var resumeAt = saved.results.length + (saved.inRound != null ? 2 : 1);
         el.dailyDesc.textContent = 'In progress. Continue from round ' + Math.min(resumeAt, ROUNDS.length) + '.';
         el.dailySide.textContent = 'Continue';
       } else {
-        el.dailyDesc.textContent = 'The same five places for everyone today.';
+        el.dailyDesc.textContent = ARCHIVE_DAY ? 'From the archive. The same five places everyone got that day.' : 'The same five places for everyone today.';
         el.dailySide.textContent = longDate(day).replace(/ \d{4}$/, '');
       }
       el.tbMode.textContent = '';
@@ -651,8 +655,8 @@
 
     /* =============================================================== flow */
     function beginDaily() {
-      var day = todayKey();
-      var saved = readDaily() || { date: day, results: [], inRound: null, done: false, total: 0 };
+      var day = dailyDay();
+      var saved = readDaily(day) || { date: day, results: [], inRound: null, done: false, total: 0 };
       state.mode = 'daily';
       state.day = day;
       state.targets = dailyTargets(day);
@@ -819,7 +823,9 @@
       }).join('');
       el.practiceAgain.textContent = state.mode === 'daily' ? 'Practice' : 'Play again';
       el.note.className = 'note';
-      el.note.textContent = state.mode === 'daily' ? 'Next daily challenge in ' + timeToNextDaily() + '.' : '';
+      el.note.textContent = state.mode !== 'daily' ? '' : ARCHIVE_DAY
+        ? 'Missed other days? Open the calendar on the home page.'
+        : 'Next daily challenge in ' + timeToNextDaily() + '.';
       el.results.hidden = false;
       el.share.focus({ preventScroll: true });
     }

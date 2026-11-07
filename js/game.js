@@ -538,6 +538,16 @@
     return new Date().toISOString().slice(0, 10); // UTC date, same for everyone
   }
 
+  // Daily archive (js/daily-archive.js): snapshot.html?date=YYYY-MM-DD plays a past day.
+  var Archive = window.DailyArchive;
+  var ARCHIVE_DAY = Archive ? Archive.requestedDay() : null;
+  /** The day the Daily mode plays: an archive day, or today. */
+  function dailyDay() { return ARCHIVE_DAY || todayKey(); }
+  function readDailyResult(day) { return Archive ? Archive.read('snapshot', day) : null; }
+  function writeDailyResult(day, total) {
+    if (Archive) Archive.write('snapshot', day, { date: day, done: true, total: total, summary: fmt(total) + ' pts' });
+  }
+
   // ---- saved progress (per browser; the game works without it) -----------
   function readStore(key, fallback) {
     try {
@@ -560,9 +570,9 @@
     return loadBuiltPhotos();
   }
 
-  /** Today's photos in a fixed order (the first five are the match, the rest are spares). */
+  /** The daily's photos in a fixed order (the first five are the match, the rest are spares). */
   function loadDailyPhotos() {
-    var day = todayKey();
+    var day = dailyDay();
     var manifest = window.SNAPSHOT_MANIFEST;
     var source = manifest && manifest.shards > 0 && manifest.path
       ? loadShard(hashStr('shard:' + day) % manifest.shards).then(validPhotos)
@@ -674,13 +684,13 @@
     if (stats.best) parts.push('Best ' + fmt(stats.best));
     el.menuStats.textContent = parts.join(' · ');
 
-    var daily = readStore('daily', null);
-    var doneToday = daily && daily.date === todayKey();
-    el.dailyBadge.hidden = !doneToday;
-    if (doneToday) el.dailyBadge.textContent = 'Today: ' + fmt(daily.total);
-    el.dailyDesc.textContent = doneToday
-      ? 'Played today. Replay for fun; your score is kept'
-      : 'Today’s five: the same for everyone';
+    var daily = readDailyResult(dailyDay());
+    var dayLabel = ARCHIVE_DAY ? Archive.longDate(ARCHIVE_DAY) : '';
+    el.dailyBadge.hidden = !daily && !ARCHIVE_DAY;
+    el.dailyBadge.textContent = daily ? (ARCHIVE_DAY ? '✓ ' : 'Today: ') + fmt(daily.total) : 'Archive';
+    el.dailyDesc.textContent = ARCHIVE_DAY
+      ? (daily ? dayLabel + '. Played; replay for fun' : dayLabel + ': the five everyone got that day')
+      : (daily ? 'Played today. Replay for fun; your score is kept' : 'Today’s five: the same for everyone');
 
     fillCardImages();
   }
@@ -741,7 +751,9 @@
   }
 
   function modeLabelText() {
-    if (state.mode === 'daily') return 'Daily · ' + todayKey();
+    if (state.mode === 'daily') {
+      return 'Daily · ' + new Date(dailyDay() + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    }
     if (state.mode === 'era' && state.era) return state.era.from + '–' + state.era.to;
     return '';
   }
@@ -878,12 +890,9 @@
     writeStore('stats', stats);
     var dailyNote = '';
     if (state.mode === 'daily') {
-      var prev = readStore('daily', null);
-      if (!prev || prev.date !== todayKey()) {
-        writeStore('daily', { date: todayKey(), total: state.total });
-      } else {
-        dailyNote = ' (Your first score today, ' + fmt(prev.total) + ', is the one that counts.)';
-      }
+      var prev = readDailyResult(dailyDay());
+      if (!prev) writeDailyResult(dailyDay(), state.total);
+      else dailyNote = ' (Your first score for this day, ' + fmt(prev.total) + ', is the one that counts.)';
     }
     if (dailyNote) el.endVerdict.textContent += dailyNote;
     el.again.textContent = state.mode === 'daily' ? 'Play a random match' : 'Play again';
