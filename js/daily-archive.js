@@ -9,6 +9,17 @@
  *   `done` and `summary` (e.g. "8,676 pts", "4/6") are what the hub's
  *   calendar shows; the rest belongs to the game.
  * - Older single-day keys from before the archive are migrated on first use.
+ *
+ * Account sync (when js/account.js is loaded and the player is signed in):
+ * - On every page load, results are pulled from /api/dailies and merged in,
+ *   and anything only this browser has (e.g. played as a guest before
+ *   signing in) is pushed up.
+ * - Every write is pushed straight away (debounced).
+ * - Merging keeps the first finished result for a day, otherwise the one
+ *   furthest along; the server applies the same rule.
+ * - Signing out clears these results from the browser, so a shared computer
+ *   doesn't show the previous player's calendar.
+ * - Pages hear about pulled changes via a 'dailyarchive:sync' window event.
  * ========================================================================== */
 (function () {
   'use strict';
@@ -69,7 +80,100 @@
     var all = readAll(game);
     all[day] = record;
     writeAll(game, all);
+    push(game, day, record);
   }
+
+  /* -------------------------------------------------------------- sync */
+  /** How far through the day's game a record is: finished beats everything, then more moves. */
+  function progressOf(rec) {
+    if (!rec || typeof rec !== 'object') return -1;
+    if (rec.done) return 1e6;
+    return Array.isArray(rec.results) ? rec.results.length : Array.isArray(rec.guesses) ? rec.guesses.length : 0;
+  }
+  /** Keep the first finished result, otherwise whichever is further along. */
+  function keepBetter(mine, theirs) {
+    if (!mine) return theirs;
+    if (!theirs || mine.done) return mine;
+    if (theirs.done) return theirs;
+    return progressOf(theirs) > progressOf(mine) ? theirs : mine;
+  }
+
+  function account() {
+    var acct = window.SnapshotAccount;
+    return acct && acct.user() && acct.request ? acct : null;
+  }
+
+  var pushTimers = {};
+  /** Send one day's result to the account (debounced per game/day). */
+  function push(game, day, record) {
+    var acct = account();
+    if (!acct) return;
+    var k = game + '|' + day;
+    clearTimeout(pushTimers[k]);
+    pushTimers[k] = setTimeout(function () {
+      delete pushTimers[k];
+      acct.request('PUT', 'dailies', { game: game, day: day, record: record }).then(function (res) {
+        // The server keeps the better of the two; adopt it if it isn't ours.
+        var kept = res && res.record;
+        if (kept && JSON.stringify(kept) !== JSON.stringify(record)) {
+          var all = readAll(game); all[day] = kept; writeAll(game, all);
+          announce();
+        }
+      }, function (err) { console.warn('Couldn’t save the daily result to your account', err); });
+    }, 400);
+  }
+
+  function announce() {
+    try { window.dispatchEvent(new CustomEvent('dailyarchive:sync')); } catch (e) { /* old browsers */ }
+  }
+
+  var syncing = null;
+  /** Pull the account's results, merge them in, and push anything only this browser has. */
+  function sync() {
+    var acct = account();
+    if (!acct) return Promise.resolve(false);
+    if (syncing) return syncing;
+    syncing = acct.request('GET', 'dailies').then(function (res) {
+      var remote = (res && res.dailies) || {};
+      var changed = false;
+      GAMES.forEach(function (g) {
+        var local = readAll(g.id), theirs = remote[g.id] || {};
+        var days = Object.keys(local).concat(Object.keys(theirs));
+        days.forEach(function (day) {
+          if (!isValidDay(day)) return;
+          var best = keepBetter(local[day], theirs[day]);
+          if (best !== local[day]) { local[day] = best; changed = true; }
+          if (best !== theirs[day] && JSON.stringify(best) !== JSON.stringify(theirs[day])) push(g.id, day, best);
+        });
+        writeAll(g.id, local);
+      });
+      if (changed) announce();
+      return changed;
+    }).catch(function (err) {
+      console.warn('Couldn’t load daily results from your account', err);
+      return false;
+    }).then(function (changed) { syncing = null; return changed; });
+    return syncing;
+  }
+
+  /** Remove every saved daily result from this browser (used on sign-out). */
+  function clearLocal() {
+    GAMES.forEach(function (g) { try { localStorage.removeItem(key(g.id)); } catch (e) { /* ignore */ } });
+    announce();
+  }
+
+  // Wire up to the account client if this page has it.
+  (function connect() {
+    var acct = window.SnapshotAccount;
+    if (!acct) return;
+    var wasSignedIn = false;
+    acct.onChange(function (user) {
+      if (user && !wasSignedIn) sync();
+      if (!user && wasSignedIn) clearLocal();
+      wasSignedIn = !!user;
+    });
+    acct.init().then(function (user) { if (user) { wasSignedIn = true; sync(); } });
+  })();
 
   /** Bring results saved before the archive existed into the per-day store. */
   function migrate(game, all) {
@@ -118,6 +222,8 @@
     write: write,
     readAll: readAll,
     status: status,
-    urlFor: urlFor
+    urlFor: urlFor,
+    sync: sync,
+    clearLocal: clearLocal
   };
 })();

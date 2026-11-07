@@ -33,6 +33,17 @@ Accounts run on **Cloudflare Pages Functions** (`functions/api/[[route]].js`) wi
 
 To see who has signed up, open the database's **Console** tab in Cloudflare and run `SELECT id, username, created_at FROM users;`.
 
+### Synced daily results
+
+Once a player is signed in, their daily challenge results (the archive calendar, plus any game in progress) follow them to any device:
+
+- **When syncing happens:** every page pulls the account's results on load and merges them in. Every round or guess is saved to the account as it happens.
+- **Guest progress:** results played as a guest before signing in are uploaded when the player signs in or creates an account.
+- **Conflicts:** the first finished result for a day counts, and an unfinished game only moves forward. The server enforces this too, so a second device or a stale tab can't overwrite a real result.
+- **Signing out** clears the results from that browser, so a shared computer doesn't show the previous player's calendar.
+
+Stored in the `daily_results` table (one row per user, game and day), via `GET /api/dailies` and `PUT /api/dailies`. The table is created automatically. Client side: `js/daily-archive.js`.
+
 ### Security
 
 - **Passwords:** never stored, only PBKDF2-SHA256 hashes (100,000 iterations) with a random salt per user.

@@ -20,7 +20,8 @@
   <!-- 2,500+ places for the five rounds, built by scripts/build-pinpoint-places.js -->
   <script src="./js/pinpoint-places.js?v=20261107e"></script>
   <!-- Daily archive: per-day results + ?date=YYYY-MM-DD -->
-  <script src="./js/daily-archive.js?v=20261107h"></script>
+  <script src="./js/account.js?v=20261107j"></script>
+  <script src="./js/daily-archive.js?v=20261107j"></script>
 
   <style>
     /* ===================================================================
@@ -852,6 +853,8 @@
 
     /* ============================================================= events */
     el.dailyBtn.addEventListener('click', beginDaily);
+    // Results pulled from the player's account (another device) refresh the start screen.
+    window.addEventListener('dailyarchive:sync', function () { if (!el.start.hidden) renderStart(); });
     el.practiceBtn.addEventListener('click', beginPractice);
     el.practiceAgain.addEventListener('click', beginPractice);
     el.next.addEventListener('click', nextRound);

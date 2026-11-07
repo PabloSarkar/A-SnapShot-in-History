@@ -135,6 +135,8 @@
     var path = e.composedPath ? e.composedPath() : [e.target];
     if (path.indexOf(el.panel) === -1 && path.indexOf(el.pill) === -1) close(false);
   });
+  // Refresh when results arrive from the account (another device) or another tab.
+  window.addEventListener('dailyarchive:sync', function () { if (!el.panel.hidden) { renderGrid(); renderDay(); } });
   // Keep dots fresh if a game was played in another tab.
   window.addEventListener('storage', function (e) {
     if (!el.panel.hidden && e.key && e.key.indexOf('dailies.') === 0) { renderGrid(); renderDay(); }

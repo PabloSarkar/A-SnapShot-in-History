@@ -120,6 +120,8 @@
     loadProgress: loadProgress,
     saveProgress: saveProgress,
     user: function () { return state.user; },
+    /** Low-level API call for other modules (e.g. daily-archive sync): request('GET', 'dailies'). */
+    request: request,
     isAvailable: function () { return state.available; },
     onChange: function (fn) { listeners.push(fn); }
   };

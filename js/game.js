@@ -943,6 +943,8 @@
       else startMatch(state.mode, state.era);
     });
     el.toMenu.addEventListener('click', function () { showMenu(); });
+    // Results pulled from the player's account (another device) refresh the menu.
+    window.addEventListener('dailyarchive:sync', function () { if (!el.menu.hidden) renderMenu(); });
     el.howtoOpen.addEventListener('click', function () { el.howto.hidden = false; el.howtoClose.focus(); });
     el.howtoClose.addEventListener('click', function () { el.howto.hidden = true; el.howtoOpen.focus(); });
 

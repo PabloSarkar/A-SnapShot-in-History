@@ -1,5 +1,5 @@
 /* =============================================================================
- * A Snapshot in History — accounts API (Cloudflare Pages Functions + D1)
+ * The Daily Dose — accounts API (Cloudflare Pages Functions + D1)
  * -----------------------------------------------------------------------------
  * Handles every request under /api/:
  *   GET  /api/me         -> { user: { username } | null }
@@ -8,6 +8,14 @@
  *   POST /api/logout     -> { ok: true }
  *   GET  /api/progress   -> { data }   (scores, streaks; the game's own format)
  *   PUT  /api/progress   { data } -> { ok: true }
+ *   GET  /api/dailies    -> { dailies: { game: { "YYYY-MM-DD": record } } }
+ *   PUT  /api/dailies    { game, day, record } -> { record }   (the record now stored)
+ *
+ * Daily results (one row per user, game and day) follow the same rules as
+ * the games: a finished result is never replaced by an unfinished one, the
+ * first finished result for a day is the one that counts, and an unfinished
+ * one only advances (more rounds / guesses played). The server applies these
+ * itself, so a second device or a stale tab can't overwrite a real result.
  *
  * Needs a D1 database bound as `DB` (Pages project → Settings → Bindings).
  * Without it every endpoint answers 503 { error: 'not_configured' } and the
@@ -30,6 +38,10 @@ const SESSION_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000;
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 const MAX_PROGRESS_BYTES = 20000;
+const MAX_DAILY_BYTES = 8000;
+const DAILY_GAMES = new Set(['snapshot', 'pinpoint', 'outline']);
+const DAILY_LAUNCH = '2026-11-07';
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const enc = new TextEncoder();
 
@@ -116,6 +128,13 @@ function ensureSchema(db) {
         user_id INTEGER PRIMARY KEY,
         data TEXT NOT NULL,
         updated_at INTEGER NOT NULL)`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS daily_results (
+        user_id INTEGER NOT NULL,
+        game TEXT NOT NULL,
+        day TEXT NOT NULL,
+        data TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, game, day))`),
       db.prepare('CREATE TABLE IF NOT EXISTS auth_events (key TEXT NOT NULL, at INTEGER NOT NULL)'),
       db.prepare('CREATE INDEX IF NOT EXISTS auth_events_key ON auth_events(key, at)')
     ]).catch((e) => { schemaReady = null; throw e; });
@@ -252,6 +271,57 @@ async function putProgress(db, request, user) {
   return json({ ok: true });
 }
 
+// ------------------------------------------------------------ daily results
+/** How far through the day's game a record is: finished beats everything, then more moves. */
+function progressOf(rec) {
+  if (!rec || typeof rec !== 'object') return -1;
+  if (rec.done) return 1e6;
+  const moves = Array.isArray(rec.results) ? rec.results.length : Array.isArray(rec.guesses) ? rec.guesses.length : 0;
+  return moves;
+}
+/** Which record to keep: the first finished one, otherwise the furthest along. */
+function keepBetter(existing, incoming) {
+  if (!existing) return incoming;
+  if (existing.done) return existing;
+  return progressOf(incoming) >= progressOf(existing) ? incoming : existing;
+}
+function utcDay(offsetDays) {
+  return new Date(Date.now() + (offsetDays || 0) * 86400000).toISOString().slice(0, 10);
+}
+
+async function getDailies(db, user) {
+  const { results } = await db.prepare('SELECT game, day, data FROM daily_results WHERE user_id = ?').bind(user.id).all();
+  const out = {};
+  for (const row of results || []) {
+    try { (out[row.game] = out[row.game] || {})[row.day] = JSON.parse(row.data); } catch (e) { /* skip a corrupt row */ }
+  }
+  return json({ dailies: out });
+}
+
+async function putDaily(db, request, user) {
+  const text = await request.text();
+  if (text.length > MAX_DAILY_BYTES) return fail(413, 'too_large', 'Daily result is too large.');
+  let body;
+  try { body = JSON.parse(text); } catch (e) { return fail(400, 'bad_json', 'Invalid JSON.'); }
+  const game = body && body.game, day = body && body.day, record = body && body.record;
+  if (!DAILY_GAMES.has(game)) return fail(400, 'bad_game', 'Unknown game.');
+  // Days are UTC; allow one day of slack for clocks running slightly ahead.
+  if (typeof day !== 'string' || !DAY_RE.test(day) || day < DAILY_LAUNCH || day > utcDay(1)) return fail(400, 'bad_day', 'Invalid day.');
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return fail(400, 'bad_record', 'Expected a record object.');
+
+  const row = await db.prepare('SELECT data FROM daily_results WHERE user_id = ? AND game = ? AND day = ?').bind(user.id, game, day).first();
+  let existing = null;
+  try { existing = row ? JSON.parse(row.data) : null; } catch (e) { existing = null; }
+  const keep = keepBetter(existing, record);
+  if (keep !== existing) {
+    await db.prepare(
+      `INSERT INTO daily_results (user_id, game, day, data, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, game, day) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`
+    ).bind(user.id, game, day, JSON.stringify(keep), now()).run();
+  }
+  return json({ record: keep });
+}
+
 // ----------------------------------------------------------------- entry
 export async function onRequest(context) {
   const { request, env } = context;
@@ -291,6 +361,12 @@ export async function onRequest(context) {
       if (!user) return fail(401, 'signed_out', 'Sign in first.');
       if (method === 'GET') return await getProgress(db, user);
       if (method === 'PUT') return await putProgress(db, request, user);
+    }
+    if (route === 'dailies') {
+      const user = await currentUser(db, request);
+      if (!user) return fail(401, 'signed_out', 'Sign in first.');
+      if (method === 'GET') return await getDailies(db, user);
+      if (method === 'PUT') return await putDaily(db, request, user);
     }
     return fail(404, 'not_found', 'No such endpoint.');
   } catch (e) {
