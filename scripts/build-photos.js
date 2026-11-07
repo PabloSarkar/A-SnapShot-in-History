@@ -296,10 +296,12 @@ function writeOutputs(photos) {
     photos
   }) + '\n');
 
-  // Shards: shuffled so each one mixes years and places.
+  // Shards: ordered by a hash of each id, so years and places are mixed in
+  // every shard, but an unchanged catalogue always produces identical files.
   fs.rmSync(OUT_DIR, { recursive: true, force: true });
   fs.mkdirSync(OUT_DIR, { recursive: true });
-  const mixed = shuffle(photos.slice());
+  const hash = (id) => require('crypto').createHash('sha1').update(String(id)).digest('hex');
+  const mixed = photos.slice().sort((a, b) => (hash(a.id) < hash(b.id) ? -1 : 1));
   const shards = Math.max(1, Math.ceil(mixed.length / SHARD_SIZE));
   for (let i = 0; i < shards; i++) {
     const chunk = mixed.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
