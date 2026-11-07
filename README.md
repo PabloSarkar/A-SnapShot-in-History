@@ -1,6 +1,6 @@
 # A Snapshot in History
 
-A browser game: study a historical photograph, drop a pin where you think it was taken, and slide to the year. Five rounds per match, up to 5,000 points each.
+A browser game: study a historical photograph, drop a pin where you think it was taken, and slide to the year. Five rounds per match, up to 10,000 points each.
 
 Static HTML + vanilla JS + Tailwind (CDN) + Leaflet/OpenStreetMap. No build step, no backend, no API keys.
 
@@ -24,8 +24,8 @@ All asset paths are relative (`./`), and `_headers` sets basic security and cach
 
 | Part | Max | Rule |
 |---|---|---|
-| Location | 2,500 | Haversine distance. Full points within 25 km, 0 beyond 10,000 km, quadratic decay in between. |
-| Time | 2,500 | 2,500 − 250 × years off, minimum 0. |
+| Location | 5,000 | Haversine distance, in 1,000 km bands that lose fewer points per km the further out they are, with a step down at each boundary. 5,000 − 2·km up to 500 km, then 4,500 − km, 3,500 − km/2, 2,500 − km/3 and 1,500 − km/5. Past 4,000 km it loses 1/6, 1/7, … points per km, reaching 0 at about 9,600 km. |
+| Date | 5,000 | Exact year 5,000. Within 5 years, −42.857x² − 2.8571x + 4990 (x = years off). Then 3,400 (6–7), 2,500 (8–10), 2,000 (11–15), 1,000 (16–20), 0 (over 20). |
 
 The scoring logic lives in `js/scoring.js` as pure functions you can test with Node.
 

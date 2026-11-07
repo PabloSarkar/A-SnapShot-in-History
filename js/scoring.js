@@ -4,24 +4,55 @@
  * Pure functions with no DOM access, so they can be unit-tested in Node:
  *   node -e "const s=require('./js/scoring.js'); console.log(s.scoreRound(...))"
  *
- * Per round (max 5,000):
- *   Location (max 2,500): great-circle distance via the Haversine formula.
- *     <= 25 km        -> 2,500
- *     >= 10,000 km    -> 0
- *     in between      -> quadratic ease-out decay: 2500 * (1 - t)^2,
- *                        where t = (d - 25) / (10000 - 25)
- *   Time (max 2,500):  2,500 - 250 * |guessYear - actualYear|, floored at 0.
+ * Per round: up to 5,000 for location + 5,000 for date = 10,000.
+ *
+ * LOCATION (great-circle distance via the Haversine formula), in 1,000 km
+ * bands. Points per km lost shrink in each band, and there's a step down at
+ * each band boundary, so 1,001 km scores noticeably less than 999 km:
+ *        0 –   500 km   5000 − 2·d        (rises smoothly to a perfect 5,000)
+ *      500 – 1,000 km   4500 − d          (~1 pt/km)
+ *    1,000 – 2,000 km   3500 − d/2        (~0.5 pt/km; 3,000 at 1,000 km)
+ *    2,000 – 3,000 km   2500 − d/3        (~0.33 pt/km)
+ *    3,000 – 4,000 km   1500 − d/5        (~0.2 pt/km; 700 at 4,000 km)
+ *   beyond 4,000 km     keeps losing 1/6, 1/7, 1/8 … pt/km per 1,000 km band,
+ *                       continuously from 700, reaching 0 at ~9,600 km.
+ *
+ * DATE (years off, x):
+ *    0          5000
+ *    1 – 5      −42.857·x² − 2.8571·x + 4990   (4944, 4813, 4596, 4293, 3904)
+ *    6 – 7      3400
+ *    8 – 10     2500
+ *   11 – 15     2000
+ *   16 – 20     1000
+ *   over 20     0
  * ========================================================================== */
 (function (root) {
   'use strict';
 
   var EARTH_RADIUS_KM = 6371.0088; // IUGG mean Earth radius
 
-  var LOCATION_MAX = 2500;
-  var TIME_MAX = 2500;
-  var FULL_POINTS_KM = 25;
-  var ZERO_POINTS_KM = 10000;
-  var POINTS_PER_YEAR = 250;
+  var LOCATION_MAX = 5000;
+  var TIME_MAX = 5000;
+
+  /*
+   * Location bands: [upper bound in km, start value at d = 0, points lost per km].
+   * Score inside a band = start − perKm · d. Edit these to retune.
+   */
+  var DISTANCE_BANDS = [
+    [500, 5000, 2],
+    [1000, 4500, 1],
+    [2000, 3500, 1 / 2],
+    [3000, 2500, 1 / 3],
+    [4000, 1500, 1 / 5]
+  ];
+
+  /* Date bands beyond the first five years: [max years off, points]. */
+  var DATE_STEPS = [
+    [7, 3400],
+    [10, 2500],
+    [15, 2000],
+    [20, 1000]
+  ];
 
   function toRad(deg) {
     return (deg * Math.PI) / 180;
@@ -38,20 +69,41 @@
     return EARTH_RADIUS_KM * c;
   }
 
-  /** Location points (0–2500) for a distance in km. */
-  function locationScore(distanceKm) {
-    if (typeof distanceKm !== 'number' || !isFinite(distanceKm) || distanceKm < 0) return 0;
-    if (distanceKm <= FULL_POINTS_KM) return LOCATION_MAX;
-    if (distanceKm >= ZERO_POINTS_KM) return 0;
-    var t = (distanceKm - FULL_POINTS_KM) / (ZERO_POINTS_KM - FULL_POINTS_KM);
-    return Math.round(LOCATION_MAX * Math.pow(1 - t, 2));
+  /** Location points (0–5000) for a distance in km. */
+  function locationScore(d) {
+    if (typeof d !== 'number' || !isFinite(d) || d < 0) return 0;
+    for (var i = 0; i < DISTANCE_BANDS.length; i++) {
+      var b = DISTANCE_BANDS[i];
+      if (d < b[0]) return clampScore(b[1] - b[2] * d, LOCATION_MAX);
+    }
+    // Past the last band: carry on from its end value, losing 1/6, 1/7, 1/8 …
+    // points per km in each further 1,000 km band, until the score hits 0.
+    var last = DISTANCE_BANDS[DISTANCE_BANDS.length - 1];
+    var edge = last[0];
+    var score = last[1] - last[2] * edge;       // 700 at 4,000 km
+    for (var n = 6; score > 0; n++) {
+      var perKm = 1 / n;
+      if (d < edge + 1000) return clampScore(score - perKm * (d - edge), LOCATION_MAX);
+      score -= perKm * 1000;
+      edge += 1000;
+    }
+    return 0;
   }
 
-  /** Time points (0–2500) for a guessed vs. actual year. */
+  /** Date points (0–5000) for a guessed vs. actual year. */
   function timeScore(guessYear, actualYear) {
     if (!isFinite(guessYear) || !isFinite(actualYear)) return 0;
-    var diff = Math.abs(Math.round(guessYear) - Math.round(actualYear));
-    return Math.max(0, TIME_MAX - POINTS_PER_YEAR * diff);
+    var x = Math.abs(Math.round(guessYear) - Math.round(actualYear));
+    if (x === 0) return TIME_MAX;
+    if (x <= 5) return clampScore(-42.857 * x * x - 2.8571 * x + 4990, TIME_MAX);
+    for (var i = 0; i < DATE_STEPS.length; i++) {
+      if (x <= DATE_STEPS[i][0]) return DATE_STEPS[i][1];
+    }
+    return 0;
+  }
+
+  function clampScore(v, max) {
+    return Math.max(0, Math.min(max, Math.round(v)));
   }
 
   /** Full breakdown for one round. */
@@ -74,6 +126,8 @@
     LOCATION_MAX: LOCATION_MAX,
     TIME_MAX: TIME_MAX,
     ROUND_MAX: LOCATION_MAX + TIME_MAX,
+    DISTANCE_BANDS: DISTANCE_BANDS,
+    DATE_STEPS: DATE_STEPS,
     haversineKm: haversineKm,
     locationScore: locationScore,
     timeScore: timeScore,
