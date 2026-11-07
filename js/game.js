@@ -78,6 +78,8 @@
 
   // ------------------------------------------------------------------ state
   var state = {
+    mode: 'classic',  // 'classic' | 'daily' | 'era'
+    era: null,        // { from, to, label } in era mode
     photos: [],      // the photos for this match
     reserve: [],     // spare photos, swapped in if a round's image fails to load
     round: 0,        // 0-based index
@@ -101,7 +103,11 @@
     resYear: $('res-year'), resTime: $('res-time'), resMeter: $('res-meter'), resDesc: $('res-desc'),
     resCredit: $('res-credit'),
     next: $('next'),
-    startScreen: $('start-screen'), start: $('start'),
+    menu: $('menu'), modeGrid: $('mode-grid'), menuStatus: $('menu-status'), menuStats: $('menu-stats'),
+    dailyDesc: $('daily-desc'), dailyBadge: $('daily-badge'),
+    eraPicker: $('era-picker'), eraList: $('era-list'), eraBack: $('era-back'),
+    howto: $('howto'), howtoOpen: $('howto-open'), howtoClose: $('howto-close'),
+    toMenu: $('to-menu'), modeLabel: $('mode-label'),
     endScreen: $('end-screen'), endTotal: $('end-total'), endMax: $('end-max'),
     endVerdict: $('end-verdict'), endRows: $('end-rows'), again: $('again')
   };
@@ -503,26 +509,241 @@
     });
   }
 
+  /* ================================================================ MODES
+   * classic  five random photos (unplayed ones first)
+   * daily    the same five for everyone on a given UTC day: a shard and an
+   *          order chosen by hashing the date, so no server is needed
+   * era      only photos from a chosen period
+   * ---------------------------------------------------------------------- */
+  var ERAS = [
+    { from: 1900, to: 1919, label: 'Turn of the century' },
+    { from: 1920, to: 1939, label: 'Between the wars' },
+    { from: 1940, to: 1959, label: 'War and recovery' },
+    { from: 1960, to: 1979, label: 'Sixties & seventies' },
+    { from: 1980, to: 1999, label: 'Late century' },
+    { from: 2000, to: YEAR_MAX, label: 'New millennium' }
+  ];
+
+  /** Small deterministic string hash (FNV-1a), for the daily seed. */
+  function hashStr(str) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  }
+
+  function todayKey() {
+    return new Date().toISOString().slice(0, 10); // UTC date, same for everyone
+  }
+
+  // ---- saved progress (per browser; the game works without it) -----------
+  function readStore(key, fallback) {
+    try {
+      var v = JSON.parse(window.localStorage.getItem('snapshot.' + key));
+      return v == null ? fallback : v;
+    } catch (e) { return fallback; }
+  }
+  function writeStore(key, value) {
+    try { window.localStorage.setItem('snapshot.' + key, JSON.stringify(value)); } catch (e) { /* private mode etc. */ }
+  }
+
+  /** Every photo in the catalogue (loads all shards; used by Eras). */
+  function loadAllPhotos() {
+    var manifest = window.SNAPSHOT_MANIFEST;
+    if (manifest && manifest.shards > 0 && manifest.path) {
+      var jobs = [];
+      for (var i = 0; i < manifest.shards; i++) jobs.push(loadShard(i));
+      return Promise.all(jobs).then(function (lists) { return validPhotos([].concat.apply([], lists)); });
+    }
+    return loadBuiltPhotos();
+  }
+
+  /** Today's photos in a fixed order (the first five are the match, the rest are spares). */
+  function loadDailyPhotos() {
+    var day = todayKey();
+    var manifest = window.SNAPSHOT_MANIFEST;
+    var source = manifest && manifest.shards > 0 && manifest.path
+      ? loadShard(hashStr('shard:' + day) % manifest.shards).then(validPhotos)
+      : loadBuiltPhotos();
+    return source.then(function (photos) {
+      return photos.slice().sort(function (a, b) {
+        return hashStr(day + ':' + a.id) - hashStr(day + ':' + b.id);
+      });
+    });
+  }
+
+  function loadEraPhotos(era) {
+    return loadAllPhotos().then(function (all) {
+      var inEra = shuffle(all.filter(function (p) { return p.actual_year >= era.from && p.actual_year <= era.to; }));
+      var fresh = inEra.filter(function (p) { return !playedIds[p.id]; });
+      var stale = inEra.filter(function (p) { return playedIds[p.id]; });
+      return fresh.concat(stale);
+    });
+  }
+
   var starting = false;
-  function startMatch() {
+  function startMatch(mode, era) {
     if (starting) return;
     starting = true;
-    var buttons = [el.start, el.again];
-    var labels = buttons.map(function (b) { return b.textContent; });
-    buttons.forEach(function (b) { b.disabled = true; b.textContent = 'Finding photographs…'; });
+    state.mode = mode || 'classic';
+    state.era = era || null;
+    setMenuBusy(true, 'Finding photographs…');
+    el.again.disabled = true;
 
-    loadMatchPhotos().then(function (pool) {
+    var load =
+      state.mode === 'daily' ? loadDailyPhotos() :
+      state.mode === 'era' ? loadEraPhotos(state.era) :
+      loadMatchPhotos();
+
+    load.then(function (pool) {
       starting = false;
-      buttons.forEach(function (b, i) { b.disabled = false; b.textContent = labels[i]; });
-      if (!pool.length) {
-        alert('No valid photos found in the dataset (js/data.js).');
+      setMenuBusy(false, '');
+      el.again.disabled = false;
+      if (pool.length < ROUNDS_PER_MATCH) {
+        var msg = state.mode === 'era'
+          ? 'Not enough photos from ' + state.era.from + '–' + state.era.to + ' yet. Try another era.'
+          : 'Couldn’t load the photo catalogue. Check your connection and try again.';
+        showMenu(msg);
         return;
       }
       var photos = pool.slice(0, ROUNDS_PER_MATCH);
       photos.forEach(function (p) { playedIds[p.id] = true; });
       state.reserve = pool.slice(ROUNDS_PER_MATCH);
       beginMatch(photos);
+    }, function (err) {
+      starting = false;
+      setMenuBusy(false, '');
+      el.again.disabled = false;
+      console.error(err);
+      showMenu('Something went wrong loading photos. Please try again.');
     });
+  }
+
+  // ================================================================= MENU
+  var menuMap = null;
+
+  function initMenuMap() {
+    if (typeof window.L === 'undefined' || menuMap) return;
+    menuMap = L.map('menu-map', {
+      zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+      boxZoom: false, keyboard: false, touchZoom: false, tap: false, attributionControl: true,
+      zoomSnap: 0.25
+    });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 6,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+    }).addTo(menuMap);
+    fitMenuMap();
+    window.addEventListener('resize', fitMenuMap);
+  }
+
+  function fitMenuMap() {
+    if (!menuMap || el.menu.hidden) return;
+    menuMap.invalidateSize({ pan: false });
+    var w = el.menu.clientWidth;
+    menuMap.setView([28, 12], w > 1500 ? 3 : w > 760 ? 2.25 : 1.5, { animate: false });
+  }
+
+  function setMenuBusy(busy, msg) {
+    Array.prototype.forEach.call(el.menu.querySelectorAll('.mode-card, .era-btn'), function (b) {
+      if (busy) { b.dataset.wasDisabled = String(b.disabled); b.disabled = true; }
+      else if (b.dataset.wasDisabled !== undefined) { b.disabled = b.dataset.wasDisabled === 'true'; delete b.dataset.wasDisabled; }
+    });
+    if (msg !== undefined) el.menuStatus.textContent = msg;
+  }
+
+  function showMenu(message) {
+    el.endScreen.hidden = true;
+    el.menu.hidden = false;
+    showEraPicker(false);
+    el.menuStatus.textContent = message || '';
+    renderMenu();
+    fitMenuMap();
+    var first = el.menu.querySelector('.mode-card');
+    if (first) first.focus({ preventScroll: true });
+  }
+
+  function renderMenu() {
+    var stats = readStore('stats', { played: 0, best: 0 });
+    var manifest = window.SNAPSHOT_MANIFEST;
+    var parts = [];
+    if (manifest && manifest.count) parts.push(fmt(manifest.count) + ' photographs');
+    if (stats.played) parts.push(stats.played + (stats.played === 1 ? ' match' : ' matches') + ' played');
+    if (stats.best) parts.push('Best ' + fmt(stats.best));
+    el.menuStats.textContent = parts.join(' · ');
+
+    var daily = readStore('daily', null);
+    var doneToday = daily && daily.date === todayKey();
+    el.dailyBadge.hidden = !doneToday;
+    if (doneToday) el.dailyBadge.textContent = 'Today: ' + fmt(daily.total);
+    el.dailyDesc.textContent = doneToday
+      ? 'Played today. Replay for fun; your score is kept'
+      : 'Today’s five: the same for everyone';
+
+    fillCardImages();
+  }
+
+  var cardImagesFilled = false;
+  /** Use real catalogue photos as card backgrounds (never today's daily photos). */
+  function fillCardImages() {
+    if (cardImagesFilled) return;
+    Promise.all([loadBuiltPhotos(), loadDailyPhotos().catch(function () { return []; })]).then(function (r) {
+      var dailyIds = Object.create(null);
+      r[1].slice(0, ROUNDS_PER_MATCH + 5).forEach(function (p) { dailyIds[p.id] = true; });
+      var picks = shuffle(r[0].filter(function (p) { return !dailyIds[p.id]; }));
+      var imgs = el.modeGrid.querySelectorAll('.mode-img');
+      if (!picks.length) return;
+      cardImagesFilled = true;
+      Array.prototype.forEach.call(imgs, function (img, i) {
+        var tries = 0;
+        var tryNext = function () {
+          var p = picks[(i + tries * imgs.length) % picks.length];
+          tries++;
+          img.onload = function () { img.classList.add('is-loaded'); };
+          img.onerror = function () { if (tries < 4) tryNext(); };
+          img.referrerPolicy = 'no-referrer';
+          img.src = p.image_url;
+        };
+        tryNext();
+      });
+    });
+  }
+
+  function showEraPicker(show) {
+    el.eraPicker.hidden = !show;
+    el.modeGrid.hidden = show;
+    if (!show) return;
+    el.eraList.innerHTML = '';
+    ERAS.forEach(function (era, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'era-btn';
+      b.dataset.era = String(i);
+      b.innerHTML = '<span><span class="era-years">' + era.from + '–' + era.to + '</span><br>' +
+        '<span class="era-count">' + escapeHtml(era.label) + '</span></span>' +
+        '<span class="era-count" data-count>…</span>';
+      el.eraList.appendChild(b);
+    });
+    el.menuStatus.textContent = 'Counting photos…';
+    loadAllPhotos().then(function (all) {
+      el.menuStatus.textContent = '';
+      Array.prototype.forEach.call(el.eraList.querySelectorAll('.era-btn'), function (b) {
+        var era = ERAS[Number(b.dataset.era)];
+        var n = all.filter(function (p) { return p.actual_year >= era.from && p.actual_year <= era.to; }).length;
+        b.querySelector('[data-count]').textContent = n >= ROUNDS_PER_MATCH ? fmt(n) + ' photos' : 'coming soon';
+        b.disabled = n < ROUNDS_PER_MATCH;
+      });
+      var firstOpen = el.eraList.querySelector('.era-btn:not(:disabled)');
+      if (firstOpen) firstOpen.focus({ preventScroll: true });
+    });
+  }
+
+  function modeLabelText() {
+    if (state.mode === 'daily') return 'Daily · ' + todayKey();
+    if (state.mode === 'era' && state.era) return state.era.from + '–' + state.era.to;
+    return '';
   }
 
   function beginMatch(photos) {
@@ -532,8 +753,11 @@
     state.history = [];
     el.roundTotal.textContent = state.photos.length;
     el.totalScore.textContent = '0';
-    el.startScreen.hidden = true;
+    el.menu.hidden = true;
     el.endScreen.hidden = true;
+    var label = modeLabelText();
+    el.modeLabel.hidden = !label;
+    el.modeLabel.textContent = label;
     startRound();
   }
 
@@ -647,6 +871,23 @@
       '</tr>';
     }).join('');
 
+    // Saved progress
+    var stats = readStore('stats', { played: 0, best: 0 });
+    stats.played = (stats.played || 0) + 1;
+    stats.best = Math.max(stats.best || 0, state.total);
+    writeStore('stats', stats);
+    var dailyNote = '';
+    if (state.mode === 'daily') {
+      var prev = readStore('daily', null);
+      if (!prev || prev.date !== todayKey()) {
+        writeStore('daily', { date: todayKey(), total: state.total });
+      } else {
+        dailyNote = ' (Your first score today, ' + fmt(prev.total) + ', is the one that counts.)';
+      }
+    }
+    if (dailyNote) el.endVerdict.textContent += dailyNote;
+    el.again.textContent = state.mode === 'daily' ? 'Play a random match' : 'Play again';
+
     el.endScreen.hidden = false;
     el.again.focus({ preventScroll: true });
   }
@@ -675,8 +916,26 @@
 
     el.submit.addEventListener('click', submitGuess);
     el.next.addEventListener('click', nextRound);
-    el.start.addEventListener('click', startMatch);
-    el.again.addEventListener('click', startMatch);
+    el.modeGrid.addEventListener('click', function (e) {
+      var card = e.target.closest('.mode-card');
+      if (!card || card.disabled) return;
+      var mode = card.dataset.mode;
+      if (mode === 'eras') showEraPicker(true);
+      else startMatch(mode);
+    });
+    el.eraList.addEventListener('click', function (e) {
+      var b = e.target.closest('.era-btn');
+      if (!b || b.disabled) return;
+      startMatch('era', ERAS[Number(b.dataset.era)]);
+    });
+    el.eraBack.addEventListener('click', function () { showEraPicker(false); el.menuStatus.textContent = ''; });
+    el.again.addEventListener('click', function () {
+      if (state.mode === 'daily') startMatch('classic');
+      else startMatch(state.mode, state.era);
+    });
+    el.toMenu.addEventListener('click', function () { showMenu(); });
+    el.howtoOpen.addEventListener('click', function () { el.howto.hidden = false; el.howtoClose.focus(); });
+    el.howtoClose.addEventListener('click', function () { el.howto.hidden = true; el.howtoOpen.focus(); });
 
     el.mapToggle.addEventListener('click', function () {
       var expanded = !el.mapPanel.classList.contains('is-expanded');
@@ -688,7 +947,9 @@
     });
 
     document.addEventListener('keydown', function (e) {
-      if (!el.startScreen.hidden || !el.endScreen.hidden) return;
+      if (e.key === 'Escape' && !el.howto.hidden) { el.howto.hidden = true; return; }
+      if (e.key === 'Escape' && !el.menu.hidden && !el.eraPicker.hidden) { showEraPicker(false); return; }
+      if (!el.menu.hidden || !el.endScreen.hidden || !el.howto.hidden) return;
       if (e.key === 'Enter' && !e.target.closest('button')) {
         if (!state.locked) submitGuess(); else nextRound();
       } else if (e.key === 'Escape' && !state.locked) {
@@ -711,13 +972,14 @@
       }
     }, true);
 
-    loadBuiltPhotos(); // start downloading the photo list while the start screen shows
+    loadBuiltPhotos(); // start downloading photos while the menu shows
     initMap();
+    initMenuMap();
     initViewer();
     bindEvents();
-    setYear(1960, false);
-    el.roundTotal.textContent = Math.min(ROUNDS_PER_MATCH, validPhotos(window.SNAPSHOT_DATA).length);
-    el.start.focus({ preventScroll: true });
+    setYear(1963, false);
+    el.roundTotal.textContent = ROUNDS_PER_MATCH;
+    showMenu();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

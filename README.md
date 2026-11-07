@@ -4,6 +4,16 @@ A browser game: study a historical photograph, drop a pin where you think it was
 
 Static HTML + vanilla JS + Tailwind (CDN) + Leaflet/OpenStreetMap. No build step, no backend, no API keys.
 
+## Game modes
+
+The main menu offers three modes:
+
+- **Play:** five random photographs from the whole catalogue. Photos you've already seen this session are avoided.
+- **Daily:** the same five photos for everyone on a given day (UTC). They're picked by hashing the date, so no server is needed. Your first score each day is saved in the browser and shown on the menu; replays don't overwrite it.
+- **Eras:** pick a period (1900–1919, 1920–1939, …). Eras with fewer than five photos in the catalogue are disabled until a build adds more.
+
+The menu also shows matches played and your best score, both stored in the browser's localStorage.
+
 ## Run locally
 
 ```bash

@@ -34,6 +34,7 @@
         <span class="brand-name">A Snapshot <em>in</em> History</span>
       </a>
       <div class="flex items-center gap-2 sm:gap-3" aria-live="polite">
+        <span id="mode-label" class="mode-label" hidden></span>
         <div class="stat">
           <span class="stat-label">Round</span>
           <span class="stat-value"><span id="round-num">1</span><span class="stat-dim"> of <span id="round-total">5</span></span></span>
@@ -134,19 +135,75 @@
     </footer>
   </div>
 
-  <!-- ============================ START ============================ -->
-  <div id="start-screen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="start-title">
+  <!-- ============================ MENU ============================= -->
+  <div id="menu" class="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+    <div id="menu-map" class="menu-map" aria-hidden="true"></div>
+    <div class="menu-shade" aria-hidden="true"></div>
+
+    <header class="menu-top">
+      <span class="menu-brand">
+        <span class="brand-mark brand-mark-lg" aria-hidden="true"></span>
+        <h1 id="menu-title" class="menu-title">A Snapshot <em>in</em> History</h1>
+      </span>
+      <button type="button" id="howto-open" class="ghost-btn">How to play</button>
+    </header>
+
+    <main class="menu-main">
+      <p class="menu-tagline">Where was it taken, and when?</p>
+
+      <div id="mode-grid" class="mode-grid">
+        <button type="button" class="mode-card" data-mode="classic">
+          <img class="mode-img" alt="" />
+          <span class="mode-text">
+            <span class="mode-name">Play</span>
+            <span class="mode-desc">Five random photographs, 1900 to today</span>
+          </span>
+        </button>
+        <button type="button" class="mode-card" data-mode="daily">
+          <img class="mode-img" alt="" />
+          <span class="mode-text">
+            <span class="mode-name">Daily</span>
+            <span class="mode-desc" id="daily-desc">Today’s five: the same for everyone</span>
+          </span>
+          <span class="mode-badge" id="daily-badge" hidden></span>
+        </button>
+        <button type="button" class="mode-card" data-mode="eras">
+          <img class="mode-img" alt="" />
+          <span class="mode-text">
+            <span class="mode-name">Eras</span>
+            <span class="mode-desc">Pick a period to focus on</span>
+          </span>
+        </button>
+      </div>
+
+      <div id="era-picker" class="era-picker" hidden>
+        <div class="era-head">
+          <button type="button" id="era-back" class="ghost-btn">‹ Back</button>
+          <p class="field-label">Choose an era</p>
+        </div>
+        <div id="era-list" class="era-list"></div>
+      </div>
+
+      <p id="menu-status" class="menu-status" aria-live="polite"></p>
+    </main>
+
+    <footer class="menu-foot">
+      <span id="menu-stats"></span>
+      <span>Photos from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a></span>
+    </footer>
+  </div>
+
+  <!-- ========================= HOW TO PLAY ========================= -->
+  <div id="howto" class="overlay" role="dialog" aria-modal="true" aria-labelledby="howto-title" hidden>
     <div class="card max-w-lg">
-      <span class="brand-mark brand-mark-lg" aria-hidden="true"></span>
-      <h1 id="start-title" class="card-title">A Snapshot <em>in</em> History</h1>
-      <p class="card-lede">Five photographs from the last century. Read the clues, pin where each was taken, and guess the year.</p>
+      <h2 id="howto-title" class="card-title">How to play</h2>
       <ol class="how">
-        <li><b>Study</b> the photo — scroll or pinch to zoom, drag to pan.</li>
-        <li><b>Pin</b> a location on the map.</li>
+        <li><b>Study</b> the photo: scroll or pinch to zoom, drag to pan.</li>
+        <li><b>Pin</b> where you think it was taken on the map.</li>
         <li><b>Slide</b> to the year you think it was taken.</li>
       </ol>
-      <p class="text-sm opacity-70">Up to 5,000 points for place and 5,000 for year, each round.</p>
-      <button type="button" id="start" class="primary-btn mt-5 w-full">Start a match</button>
+      <p class="text-sm opacity-70">Each round scores up to 5,000 points for place and 5,000 for year: 50,000 per match.</p>
+      <button type="button" id="howto-close" class="primary-btn mt-5 w-full">Got it</button>
     </div>
   </div>
 
@@ -162,7 +219,10 @@
           <tbody id="end-rows"></tbody>
         </table>
       </div>
-      <button type="button" id="again" class="primary-btn mt-5 w-full">Play again</button>
+      <div class="mt-5 flex flex-col gap-2 sm:flex-row">
+        <button type="button" id="again" class="primary-btn w-full">Play again</button>
+        <button type="button" id="to-menu" class="secondary-btn w-full">Main menu</button>
+      </div>
     </div>
   </div>
 
