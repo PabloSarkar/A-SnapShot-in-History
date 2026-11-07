@@ -47,7 +47,7 @@ The game uses a catalogue of real photographs from **Wikimedia Commons**, each w
 node scripts/build-photos.js --per-year 30
 ```
 
-For each year from 1900 to 2020, the script searches Commons' "*year* photographs" category tree for photos with coordinates. A photo is kept only if:
+For each year from 1900 to 2026, the script searches Commons' "*year* photographs" category tree for photos with coordinates. A photo is kept only if:
 
 - its own date is precise to the year ("1950s" and "circa 1950" are rejected) and matches the category year,
 - it's a JPEG or PNG at least 500 px wide,

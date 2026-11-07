@@ -3,7 +3,7 @@
  * Build the photo catalogue from Wikimedia Commons, using the date and place
  * each PHOTO was taken (not when the building in it was built).
  *
- *   node scripts/build-photos.js                    # ~30 photos per year, 1900–2020
+ *   node scripts/build-photos.js                    # ~30 photos per year, 1900–2026
  *   node scripts/build-photos.js --per-year 60      # bigger catalogue
  *   node scripts/build-photos.js --from 1940 --to 1960
  *   node scripts/build-photos.js --refresh          # ignore the per-year cache
@@ -48,7 +48,7 @@ function opt(name, def) {
 }
 const PER_YEAR = Math.max(1, parseInt(opt('per-year', '30'), 10));
 const FROM = parseInt(opt('from', '1900'), 10);
-const TO = parseInt(opt('to', '2020'), 10);
+const TO = parseInt(opt('to', '2026'), 10);
 const REFRESH = argv.includes('--refresh');
 const VERIFY = argv.includes('--verify');
 const SHARD_SIZE = 200;

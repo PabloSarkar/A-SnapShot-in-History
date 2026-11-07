@@ -7,7 +7,7 @@
 
   var ROUNDS_PER_MATCH = 5;
   var YEAR_MIN = 1900;
-  var YEAR_MAX = 2020;
+  var YEAR_MAX = 2026;
   var IMAGE_TIMEOUT_MS = 15000;
   var PLACEHOLDER_SRC = './assets/placeholder.svg';
 

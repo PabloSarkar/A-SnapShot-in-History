@@ -7,7 +7,7 @@
  *                image, not a web page — if it fails to load, the game shows a
  *                placeholder and the round still plays normally.
  *   lat, lng     where the photo was taken (decimal degrees)
- *   actual_year  year the photo was taken (the slider covers 1900–2020)
+ *   actual_year  year the photo was taken (the slider covers 1900–2026)
  *   description  shown only AFTER the guess is submitted
  *
  * NOTE: the image_url values below are placeholders ("https://unsplash.com" is
@@ -96,7 +96,7 @@ window.SNAPSHOT_DATA = [
  *     const params = new URLSearchParams({
  *       bounds: [south, west, north, east].join(','),  // bounding box
  *       from: '1900-01-01',
- *       to: '2020-12-31',
+ *       to: '2026-12-31',
  *       limit: 100
  *     });
  *     const res = await fetch('https://www.historypin.org/en/api/pin/listing.json?' + params);

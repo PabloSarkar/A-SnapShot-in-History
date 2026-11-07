@@ -79,7 +79,7 @@
 
   var DEFAULTS = {
     minYear: 1900,          // inclusive. For 1900–1980 pass { minYear: 1900, maxYear: 1980 }.
-    maxYear: 2020,          // inclusive. Must stay within the game slider (1900–2020).
+    maxYear: 2026,          // inclusive. Must stay within the game slider (1900–2026).
     classes: DEFAULT_CLASSES,
     country: null,          // Wikidata QID for a country, e.g. 'Q142' (France), 'Q17' (Japan)
     bbox: null,             // { south, west, north, east } in decimal degrees
@@ -189,7 +189,7 @@
        * options.minYear / options.maxYear, e.g.
        *   1900–1980  -> { minYear: 1900, maxYear: 1980 }
        *   1950s only -> { minYear: 1950, maxYear: 1959 }
-       * Keep it within 1900–2020 to match the game's year slider.
+       * Keep it within 1900–2026 to match the game's year slider.
        * ------------------------------------------------------------------ */
       '  FILTER(?year >= ' + minYear + ' && ?year <= ' + maxYear + ')',
       '  SERVICE wikibase:label { bd:serviceParam wikibase:language "' + lang + '". }',
