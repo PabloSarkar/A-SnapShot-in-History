@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>A Snapshot in History</title>
+  <meta name="description" content="Study a historical photograph, pin where it was taken and guess the year. Five rounds, 25,000 points." />
+  <meta name="theme-color" content="#14110f" />
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet (OpenStreetMap tiles; no API key needed) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Tailwind CSS (browser build via CDN, no build step) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11"></script>
+
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body class="h-dvh overflow-hidden">
+  <div id="app" class="flex h-dvh flex-col">
+
+    <!-- ============================ HEADER ============================ -->
+    <header class="topbar flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+      <a href="./" class="brand flex items-center gap-2.5" aria-label="A Snapshot in History — home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">A Snapshot <em>in</em> History</span>
+      </a>
+      <div class="flex items-center gap-2 sm:gap-3" aria-live="polite">
+        <div class="stat">
+          <span class="stat-label">Round</span>
+          <span class="stat-value"><span id="round-num">1</span><span class="stat-dim"> of <span id="round-total">5</span></span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Score</span>
+          <span class="stat-value tabular-nums" id="total-score">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============================ STAGE ============================ -->
+    <main class="relative min-h-0 flex-1">
+      <!-- Photo viewer (zoom + pan) -->
+      <section id="viewer" class="viewer absolute inset-0" aria-label="Historical photograph. Scroll or pinch to zoom, drag to pan.">
+        <div id="photo-wrap" class="photo-wrap">
+          <img id="photo" class="photo" alt="Historical photograph to identify" draggable="false" />
+        </div>
+
+        <div id="photo-loading" class="photo-state" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <p>Developing photograph…</p>
+        </div>
+
+        <div id="photo-error" class="photo-state photo-error" hidden>
+          <img src="./assets/placeholder.svg" alt="" class="w-28 opacity-80" />
+          <p class="font-semibold">This photograph couldn’t be loaded.</p>
+          <p class="text-sm opacity-70">You can still make a guess — the round counts as normal.</p>
+        </div>
+
+        <div class="zoom-controls" role="group" aria-label="Photo zoom">
+          <button type="button" class="icon-btn" id="zoom-in" aria-label="Zoom in">+</button>
+          <button type="button" class="icon-btn" id="zoom-out" aria-label="Zoom out">−</button>
+          <button type="button" class="icon-btn" id="zoom-reset" aria-label="Reset zoom">⤢</button>
+        </div>
+      </section>
+
+      <!-- Floating / collapsible map -->
+      <aside id="map-panel" class="map-panel" aria-label="Guess map">
+        <div class="map-head">
+          <span id="map-hint" class="map-hint">Click the map to drop your pin</span>
+          <div class="flex items-center gap-1">
+            <button type="button" class="map-btn" id="map-pin" aria-pressed="false" title="Keep map open">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M16 3l5 5-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z"/></svg>
+            </button>
+            <button type="button" class="map-btn" id="map-toggle" aria-expanded="false" title="Expand map">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M4 4h6v2H7.4l4.3 4.3-1.4 1.4L6 7.4V10H4zm16 16h-6v-2h2.6l-4.3-4.3 1.4-1.4 4.3 4.3V14h2z"/></svg>
+            </button>
+          </div>
+        </div>
+        <div id="map" class="map"></div>
+      </aside>
+    </main>
+
+    <!-- ========================= CONTROL BAR ========================= -->
+    <footer class="controlbar px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+
+      <!-- Guessing state -->
+      <div id="guess-controls" class="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
+        <div class="flex min-w-0 flex-1 items-center gap-3">
+          <button type="button" class="step-btn" id="year-down" aria-label="One year earlier">‹</button>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-baseline justify-between">
+              <label for="year" class="field-label">Year</label>
+              <output id="year-out" for="year" class="year-out tabular-nums" data-unset="true">Drag to pick</output>
+            </div>
+            <input id="year" type="range" min="1900" max="2020" step="1" value="1960" class="year-slider" aria-describedby="year-out" />
+            <div class="ticks" aria-hidden="true">
+              <span>1900</span><span>1930</span><span>1960</span><span>1990</span><span>2020</span>
+            </div>
+          </div>
+          <button type="button" class="step-btn" id="year-up" aria-label="One year later">›</button>
+        </div>
+
+        <div class="flex items-center gap-3 md:w-auto">
+          <ul class="checklist" aria-label="Guess requirements">
+            <li id="req-pin">Pin placed</li>
+            <li id="req-year">Year chosen</li>
+          </ul>
+          <button type="button" id="submit" class="primary-btn ml-auto" disabled>Submit guess</button>
+        </div>
+      </div>
+
+      <!-- Result state -->
+      <div id="result-controls" class="hidden flex-col gap-3 md:flex-row md:items-center md:gap-6">
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <p class="round-points tabular-nums"><span id="res-total">0</span><span class="stat-dim"> / 5,000</span></p>
+            <p class="res-detail"><span class="dot dot-loc"></span><span id="res-dist"></span> · <b id="res-loc" class="tabular-nums"></b> pts</p>
+            <p class="res-detail"><span class="dot dot-time"></span><span id="res-year"></span> · <b id="res-time" class="tabular-nums"></b> pts</p>
+          </div>
+          <div class="meter mt-2" aria-hidden="true"><span id="res-meter"></span></div>
+          <p id="res-desc" class="res-desc"></p>
+        </div>
+        <button type="button" id="next" class="primary-btn md:ml-auto">Next round</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ============================ START ============================ -->
+  <div id="start-screen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="start-title">
+    <div class="card max-w-lg">
+      <span class="brand-mark brand-mark-lg" aria-hidden="true"></span>
+      <h1 id="start-title" class="card-title">A Snapshot <em>in</em> History</h1>
+      <p class="card-lede">Five photographs from the last century. Read the clues, pin where each was taken, and guess the year.</p>
+      <ol class="how">
+        <li><b>Study</b> the photo — scroll or pinch to zoom, drag to pan.</li>
+        <li><b>Pin</b> a location on the map.</li>
+        <li><b>Slide</b> to the year you think it was taken.</li>
+      </ol>
+      <p class="text-sm opacity-70">Up to 2,500 points for place and 2,500 for year, each round.</p>
+      <button type="button" id="start" class="primary-btn mt-5 w-full">Start a match</button>
+    </div>
+  </div>
+
+  <!-- ============================= END ============================= -->
+  <div id="end-screen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="end-title" hidden>
+    <div class="card max-w-xl">
+      <p class="field-label">Match complete</p>
+      <h2 id="end-title" class="card-title tabular-nums"><span id="end-total">0</span><span class="stat-dim text-2xl"> / <span id="end-max">25,000</span></span></h2>
+      <p id="end-verdict" class="card-lede"></p>
+      <div class="overflow-x-auto">
+        <table class="summary">
+          <thead><tr><th>#</th><th>Photo</th><th class="num">Off by</th><th class="num">Points</th></tr></thead>
+          <tbody id="end-rows"></tbody>
+        </table>
+      </div>
+      <button type="button" id="again" class="primary-btn mt-5 w-full">Play again</button>
+    </div>
+  </div>
+
+  <noscript><div class="overlay"><div class="card">This game needs JavaScript enabled.</div></div></noscript>
+
+  <script src="./js/scoring.js"></script>
+  <script src="./js/data.js"></script>
+  <script src="./js/game.js"></script>
+</body>
+</html>
