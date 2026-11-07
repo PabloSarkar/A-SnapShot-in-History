@@ -4,6 +4,10 @@
  *
  *   node scripts/build-photos.js            # ~20 photos per class
  *   node scripts/build-photos.js 40         # ~40 photos per class
+ *   node scripts/build-photos.js 20 --fresh # discard the existing file first
+ *
+ * By default new photos are merged into the existing data/photos.json, so
+ * re-running only grows the list (and fills in classes that failed).
  *
  * Why pre-build: the live SPARQL queries take 2–60 s each, which is too slow
  * to run every time a match starts. The game loads this file instantly from
@@ -23,6 +27,7 @@ const path = require('path');
 const W = require('../js/wikidata-rounds.js');
 
 const PER_CLASS = Math.max(1, parseInt(process.argv[2], 10) || 20);
+const FRESH = process.argv.includes('--fresh');
 const OUT = path.join(__dirname, '..', 'data', 'photos.json');
 const UA = W.DEFAULTS.userAgent;
 
@@ -46,10 +51,20 @@ async function imageLoads(url) {
 
 async function main() {
   const all = new Map();
+  if (!FRESH && fs.existsSync(OUT)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+      (prev.photos || []).forEach((p) => all.set(p.id, p));
+      console.log(`Merging into ${all.size} existing photos`);
+    } catch (e) {
+      console.warn('Existing photos.json unreadable; starting fresh.');
+    }
+  }
   for (const cls of W.DEFAULT_CLASSES) {
     const t = Date.now();
     let rounds = [];
-    for (let attempt = 0; attempt < 2 && !rounds.length; attempt++) {
+    for (let attempt = 0; attempt < 3 && !rounds.length; attempt++) {
+      if (attempt > 0) await sleep(20000); // back off (e.g. Commons rate limit)
       try {
         rounds = await W.fetchHistoricalRounds(PER_CLASS, {
           classes: [cls],
@@ -59,14 +74,13 @@ async function main() {
           timeoutMs: 70000
         });
       } catch (e) {
-        console.warn(`  ${cls}: ${e.message}${attempt === 0 ? ' (retrying)' : ''}`);
-        await sleep(5000);
+        console.warn(`  ${cls}: ${e.message}`);
       }
+      // Keep only photos resolved through the Commons API (direct thumbnail
+      // URLs). The Special:FilePath fallback is fine live, but not worth
+      // baking into a static file; if that's all we got, retry the class.
+      rounds = rounds.filter((r) => /^https:\/\/(thumb|upload)\.wikimedia\.org\//.test(r.image_url));
     }
-    // Keep only photos resolved through the Commons API (direct thumbnail
-    // URLs). The Special:FilePath fallback is fine live, but not worth
-    // baking into a static file.
-    rounds = rounds.filter((r) => /^https:\/\/(thumb|upload)\.wikimedia\.org\//.test(r.image_url));
 
     let kept = 0;
     for (const r of rounds) {
