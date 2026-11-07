@@ -1,0 +1,96 @@
+#!/usr/bin/env node
+/* =============================================================================
+ * Build data/photos.json from Wikidata + Wikimedia Commons.
+ *
+ *   node scripts/build-photos.js            # ~20 photos per class
+ *   node scripts/build-photos.js 40         # ~40 photos per class
+ *
+ * Why pre-build: the live SPARQL queries take 2–60 s each, which is too slow
+ * to run every time a match starts. The game loads this file instantly from
+ * the same origin. Re-run the script whenever you want fresh photos, then
+ * commit the result; Cloudflare Pages serves it as a static file.
+ *
+ * Every image URL is checked with a real request before it is kept, so the
+ * file only contains photos that loaded at build time.
+ *
+ * Needs Node 18+. Behind an HTTPS proxy, run with NODE_USE_ENV_PROXY=1
+ * (Node 22.21+).
+ * ========================================================================== */
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const W = require('../js/wikidata-rounds.js');
+
+const PER_CLASS = Math.max(1, parseInt(process.argv[2], 10) || 20);
+const OUT = path.join(__dirname, '..', 'data', 'photos.json');
+const UA = W.DEFAULTS.userAgent;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Check that the image URL really returns an image (retrying on 429). */
+async function imageLoads(url) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': UA, Range: 'bytes=0-1023' } });
+      if (res.status === 429) { await sleep(3000 * (attempt + 1)); continue; }
+      const type = res.headers.get('content-type') || '';
+      if (res.body) await res.body.cancel().catch(() => {});
+      return (res.ok || res.status === 206) && /^image\/(jpeg|png)/.test(type);
+    } catch (e) {
+      await sleep(1000);
+    }
+  }
+  return false;
+}
+
+async function main() {
+  const all = new Map();
+  for (const cls of W.DEFAULT_CLASSES) {
+    const t = Date.now();
+    let rounds = [];
+    for (let attempt = 0; attempt < 2 && !rounds.length; attempt++) {
+      try {
+        rounds = await W.fetchHistoricalRounds(PER_CLASS, {
+          classes: [cls],
+          parallelClasses: 1,
+          poolFactor: 3,
+          maxRandomOffset: 300,
+          timeoutMs: 70000
+        });
+      } catch (e) {
+        console.warn(`  ${cls}: ${e.message}${attempt === 0 ? ' (retrying)' : ''}`);
+        await sleep(5000);
+      }
+    }
+    // Keep only photos resolved through the Commons API (direct thumbnail
+    // URLs). The Special:FilePath fallback is fine live, but not worth
+    // baking into a static file.
+    rounds = rounds.filter((r) => /^https:\/\/(thumb|upload)\.wikimedia\.org\//.test(r.image_url));
+
+    let kept = 0;
+    for (const r of rounds) {
+      if (all.has(r.id)) continue;
+      if (await imageLoads(r.image_url)) { all.set(r.id, r); kept++; }
+      await sleep(150);
+    }
+    console.log(`${cls}: kept ${kept} (${((Date.now() - t) / 1000).toFixed(1)}s)`);
+    await sleep(1500);
+  }
+
+  const photos = [...all.values()];
+  if (!photos.length) {
+    console.error('No photos fetched; leaving the existing file alone.');
+    process.exit(1);
+  }
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
+  fs.writeFileSync(OUT, JSON.stringify({
+    generated: new Date().toISOString(),
+    source: 'Wikidata (CC0) + Wikimedia Commons (individual licences: see source_url)',
+    count: photos.length,
+    photos
+  }, null, 1) + '\n');
+  console.log(`Wrote ${photos.length} photos to ${path.relative(process.cwd(), OUT)}`);
+}
+
+main().catch((e) => { console.error(e); process.exit(1); });

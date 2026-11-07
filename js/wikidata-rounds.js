@@ -6,7 +6,7 @@
  *
  *   {
  *     id:          "Q243",                       // Wikidata QID
- *     image_url:   "https://upload.wikimedia.org/…/1600px-….jpg",
+ *     image_url:   "https://thumb.wikimedia.org/wikipedia/commons/thumb/…/1280px-….jpg",
  *     lat:         48.8584,
  *     lng:         2.2945,
  *     actual_year: 1889,
@@ -55,22 +55,26 @@
    * service's 60-second timeout. If you need it, use it with a single,
    * narrow class only.
    *
+   * Each class is queried separately (several in parallel): one query with
+   * every class in a VALUES list took ~48 s or timed out, while single-class
+   * queries took 2–12 s when measured. Some classes are much slower: church
+   * building (Q16970) took ~45 s and street (Q79007) timed out, so they are
+   * left out. For live use, keep this list to fast classes.
+   *
    * Pass your own list with options.classes to change what appears, e.g.
    *   classes: ['Q16970']          // church buildings only
    *   classes: ['Q12280','Q12518'] // bridges and towers
    * ------------------------------------------------------------------------- */
   var DEFAULT_CLASSES = [
-    'Q508685',  // historical building (supplied in the brief; check on wikidata.org if results look off)
-    'Q4989906', // monument
-    'Q41176',   // building (broad; most results come from here)
-    'Q12280',   // bridge
-    'Q12518',   // tower
-    'Q11303',   // skyscraper
-    'Q483110',  // stadium
-    'Q174782',  // square (town square / plaza)
-    'Q79007',   // street
-    'Q16970',   // church building
-    'Q33506'    // museum (the building, not the artefacts)
+    'Q35112127', // historic building
+    'Q4989906',  // monument
+    'Q41176',    // building (broad)
+    'Q12280',    // bridge
+    'Q12518',    // tower
+    'Q483110',   // stadium
+    'Q174782',   // square (town square / plaza)
+    'Q33506',    // museum (the building, not the artefacts)
+    'Q1081138'   // historic site
   ];
 
   var DEFAULTS = {
@@ -79,10 +83,11 @@
     classes: DEFAULT_CLASSES,
     country: null,          // Wikidata QID for a country, e.g. 'Q142' (France), 'Q17' (Japan)
     bbox: null,             // { south, west, north, east } in decimal degrees
-    thumbWidth: 1600,       // pixel width of the image requested from Commons
-    poolFactor: 6,          // fetch limit × poolFactor rows, then sample randomly from them
-    maxRandomOffset: 3000,  // randomise which slice of the results is returned (0 = always the same)
-    timeoutMs: 20000,       // timeout for each network request
+    thumbWidth: 1280,       // image width requested from Commons; snapped to a width Wikimedia serves (see STANDARD_WIDTHS)
+    parallelClasses: 3,     // how many classes (picked at random) to query at once, one query each
+    poolFactor: 4,          // rows fetched per class = limit × poolFactor; rounds are sampled from them
+    maxRandomOffset: 400,   // randomise which slice of each class is returned (0 = always the same)
+    timeoutMs: 25000,       // timeout for each network request
     language: 'en',
     userAgent: 'ASnapshotInHistory/1.0 (https://github.com/pablosarkar/a-snapshot-in-history)',
     signal: null,           // optional AbortSignal to cancel the whole fetch
@@ -93,6 +98,15 @@
   // DjVu, audio and video are all dropped.
   var ALLOWED_EXT = /\.(jpe?g|png)$/i;
   var ALLOWED_MIME = { 'image/jpeg': true, 'image/png': true };
+
+  // Wikimedia only generates thumbnails at these widths; other widths (e.g.
+  // 1600) return HTTP 400.
+  var STANDARD_WIDTHS = [250, 330, 500, 960, 1280, 1920];
+  function snapWidth(w) {
+    w = Number(w) || 1280;
+    for (var i = 0; i < STANDARD_WIDTHS.length; i++) if (STANDARD_WIDTHS[i] >= w) return STANDARD_WIDTHS[i];
+    return STANDARD_WIDTHS[STANDARD_WIDTHS.length - 1];
+  }
 
   var IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefined';
 
@@ -155,9 +169,7 @@
       '  ?item wdt:P31 ?class .',
       coordPattern +                    // P625 coordinate location (+ optional bbox)
       countryPattern +                  // optional P17 country
-      '  ?item wdt:P18 ?image .',       // P18 image
-      // Keep only JPEG/PNG files at the query stage (checked again in JS).
-      '  FILTER(REGEX(STR(?image), "\\\\.(jpe?g|png)$", "i"))',
+      '  ?item wdt:P18 ?image .',       // P18 image (JPEG/PNG is checked in JS; a REGEX here slows the query down)
       // Date: inception (P571) OR point in time (P585). We go through the full
       // statement (p:/psv:) to read the date's *precision* and keep only values
       // precise to the year or better (9 = year, 10 = month, 11 = day). Without
@@ -237,7 +249,7 @@
   /** Special:FilePath URL with a width hint; redirects to the actual image. */
   function filePathUrl(fileName, width) {
     return FILEPATH_PREFIX + encodeURIComponent(fileName.replace(/ /g, '_')) +
-      (width ? '?width=' + Math.round(width) : '');
+      (width ? '?width=' + snapWidth(width) : '');
   }
 
   function commonsPageUrl(fileName) {
@@ -352,9 +364,22 @@
     return h;
   }
 
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  /** fetchJson with retries on 429 (rate limited) and 5xx, with backoff. */
+  function fetchJsonRetry(url, init, opts, retries) {
+    return fetchJson(url, init, opts).catch(function (err) {
+      var retryable = err && (err.status === 429 || err.status >= 500);
+      if (!retryable || retries <= 0 || (opts.signal && opts.signal.aborted)) throw err;
+      return wait(err.status === 429 ? 2500 : 1000).then(function () {
+        return fetchJsonRetry(url, init, opts, retries - 1);
+      });
+    });
+  }
+
   function runSparql(query, opts) {
     var url = SPARQL_ENDPOINT + '?format=json&query=' + encodeURIComponent(query);
-    return fetchJson(url, { method: 'GET', headers: headers('application/sparql-results+json', opts) }, opts);
+    return fetchJsonRetry(url, { method: 'GET', headers: headers('application/sparql-results+json', opts) }, opts, 1);
   }
 
   /**
@@ -374,10 +399,10 @@
         'redirects=1',
         'prop=imageinfo',
         'iiprop=url%7Cmime%7Csize',
-        'iiurlwidth=' + Math.round(opts.thumbWidth),
+        'iiurlwidth=' + snapWidth(opts.thumbWidth),
         'titles=' + encodeURIComponent(batch.map(function (n) { return 'File:' + n; }).join('|'))
       ].join('&');
-      return fetchJson(COMMONS_API + '?' + params, { method: 'GET', headers: headers('application/json', opts) }, opts);
+      return fetchJsonRetry(COMMONS_API + '?' + params, { method: 'GET', headers: headers('application/json', opts) }, opts, 2);
     })).then(function (responses) {
       var out = Object.create(null);
       responses.forEach(function (json) {
@@ -396,8 +421,9 @@
           if (!page || page.missing || !page.imageinfo || !page.imageinfo[0]) return;
           var info = page.imageinfo[0];
           out[name] = {
-            // thumburl is the resized copy; fall back to the original for small files
-            url: info.thumburl || info.url,
+            // thumburl is the resized copy; fall back to the original for small files.
+            // Strip Commons' tracking parameters (?utm_source=…).
+            url: String(info.thumburl || info.url).split('?')[0],
             mime: info.mime,
             page: info.descriptionurl || commonsPageUrl(name)
           };
@@ -448,23 +474,46 @@
       return Promise.reject(new Error('wikidata-rounds: minYear is after maxYear'));
     }
 
-    // Pull a bigger pool than needed from a random point in the result set,
-    // then sample from it, so each match isn't the same handful of buildings.
-    var pool = limit * Math.max(1, opts.poolFactor);
-    var offset = opts.maxRandomOffset > 0 ? Math.floor(Math.random() * opts.maxRandomOffset) : 0;
+    var classes = (opts.classes || []).filter(isQid);
+    if (!classes.length) return Promise.reject(new Error('wikidata-rounds: options.classes needs at least one QID'));
 
-    function query(off) {
-      return runSparql(buildQuery(opts, pool, off), opts).then(function (json) {
-        return parseBindings(json, opts);
+    // One query per class, for a few randomly chosen classes, in parallel.
+    // Each pulls a bigger pool than needed from a random point in that class's
+    // results so each match isn't the same handful of buildings.
+    var chosen = shuffle(classes.slice()).slice(0, Math.max(1, opts.parallelClasses || 1));
+    var perClass = Math.max(limit, Math.ceil((limit * Math.max(1, opts.poolFactor)) / chosen.length));
+
+    function queryClass(cls) {
+      var one = mergeOptions(opts);
+      one.classes = [cls];
+      var offset = opts.maxRandomOffset > 0 ? Math.floor(Math.random() * opts.maxRandomOffset) : 0;
+      function run(off) {
+        return runSparql(buildQuery(one, perClass, off), one).then(function (json) {
+          return parseBindings(json, one);
+        });
+      }
+      return run(offset).then(function (items) {
+        // A small class can have fewer results than the random offset; retry from the start.
+        return items.length < limit && offset > 0 ? run(0) : items;
       });
     }
 
-    return query(offset)
-      .then(function (items) {
-        // A narrow filter can have fewer results than the random offset; retry
-        // from the start in that case.
-        if (items.length < limit && offset > 0) return query(0);
-        return items;
+    // A slow or failed class doesn't sink the batch; only reject if all fail.
+    return Promise.all(chosen.map(function (cls) {
+      return queryClass(cls).then(
+        function (items) { return { ok: true, items: items }; },
+        function (err) { return { ok: false, err: err }; }
+      );
+    }))
+      .then(function (results) {
+        var ok = results.filter(function (r) { return r.ok; });
+        if (!ok.length) throw results[0].err;
+        var seen = Object.create(null);
+        var merged = [];
+        ok.forEach(function (r) {
+          r.items.forEach(function (it) { if (!seen[it.id]) { seen[it.id] = true; merged.push(it); } });
+        });
+        return merged;
       })
       .then(function (items) {
         var picked = shuffle(items).slice(0, limit);
@@ -505,6 +554,8 @@
     parsePoint: parsePoint,
     fileNameFromP18: fileNameFromP18,
     DEFAULT_CLASSES: DEFAULT_CLASSES.slice(),
+    STANDARD_WIDTHS: STANDARD_WIDTHS.slice(),
+    snapWidth: snapWidth,
     DEFAULTS: DEFAULTS
   };
 

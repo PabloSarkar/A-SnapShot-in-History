@@ -11,11 +11,16 @@
   var IMAGE_TIMEOUT_MS = 15000;
   var PLACEHOLDER_SRC = './assets/placeholder.svg';
 
-  // Live photos from Wikidata + Commons (js/wikidata-rounds.js). If the fetch
-  // fails or times out, the match uses the embedded set in js/data.js instead.
+  // Where photos come from, in order:
+  //   1. ./data/photos.json: pre-built from Wikidata + Commons by
+  //      scripts/build-photos.js. Loads instantly; this is the main source.
+  //   2. Live Wikidata queries (js/wikidata-rounds.js), only if enabled below.
+  //      Off by default because each query takes ~10–60 s.
+  //   3. The embedded entries in js/data.js, as a last resort.
+  var PHOTOS_JSON = './data/photos.json';
   var LIVE_ROUNDS = {
-    enabled: true,
-    timeoutMs: 12000,
+    enabled: false,
+    timeoutMs: 45000,
     options: { minYear: YEAR_MIN, maxYear: YEAR_MAX } // e.g. add country: 'Q142' or bbox: {...}
   };
 
@@ -386,21 +391,57 @@
   }
 
   // ============================================================ GAME FLOW
-  /** Live rounds first, topped up from the embedded set if there aren't enough. */
-  function loadMatchPhotos() {
-    var embedded = shuffle(validPhotos(window.SNAPSHOT_DATA));
-    var api = window.WikidataRounds;
-    if (!LIVE_ROUNDS.enabled || !api) return Promise.resolve(embedded);
+  var builtPhotos = null; // promise for photos.json, fetched once
+  var playedIds = Object.create(null);
 
+  function loadBuiltPhotos() {
+    if (!builtPhotos) {
+      builtPhotos = fetch(PHOTOS_JSON, { cache: 'no-cache' })
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function (json) { return validPhotos(Array.isArray(json) ? json : json.photos); })
+        .catch(function (err) {
+          console.warn('Could not load ' + PHOTOS_JSON + '; using the embedded set.', err);
+          builtPhotos = null; // try again next match
+          return [];
+        });
+    }
+    return builtPhotos;
+  }
+
+  function loadLivePhotos() {
+    var api = window.WikidataRounds;
+    if (!LIVE_ROUNDS.enabled || !api) return Promise.resolve([]);
     var opts = {};
     for (var k in LIVE_ROUNDS.options) opts[k] = LIVE_ROUNDS.options[k];
     opts.timeoutMs = LIVE_ROUNDS.timeoutMs;
     return api.fetchHistoricalRounds(ROUNDS_PER_MATCH, opts)
-      .then(function (live) { return validPhotos(live).concat(embedded); })
+      .then(validPhotos)
       .catch(function (err) {
-        console.warn('Live photos unavailable; using the built-in set.', err);
-        return embedded;
+        console.warn('Live photos unavailable.', err);
+        return [];
       });
+  }
+
+  /** Pick photos for a match: live, then pre-built, then embedded; unplayed ones first. */
+  function loadMatchPhotos() {
+    return Promise.all([loadLivePhotos(), loadBuiltPhotos()]).then(function (sources) {
+      var live = sources[0];
+      var built = shuffle(sources[1]);
+      var fresh = built.filter(function (p) { return !playedIds[p.id]; });
+      if (fresh.length < ROUNDS_PER_MATCH) { playedIds = Object.create(null); fresh = built; }
+      var pool = live.concat(fresh);
+      if (pool.length < ROUNDS_PER_MATCH) pool = pool.concat(shuffle(validPhotos(window.SNAPSHOT_DATA)));
+      var seen = Object.create(null);
+      return pool.filter(function (p) {
+        var key = String(p.id);
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+    });
   }
 
   var starting = false;
@@ -418,7 +459,9 @@
         alert('No valid photos found in the dataset (js/data.js).');
         return;
       }
-      beginMatch(pool.slice(0, ROUNDS_PER_MATCH));
+      var photos = pool.slice(0, ROUNDS_PER_MATCH);
+      photos.forEach(function (p) { playedIds[p.id] = true; });
+      beginMatch(photos);
     });
   }
 
@@ -582,6 +625,7 @@
       }
     }, true);
 
+    loadBuiltPhotos(); // start downloading the photo list while the start screen shows
     initMap();
     initViewer();
     bindEvents();

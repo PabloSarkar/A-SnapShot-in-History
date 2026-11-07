@@ -80,11 +80,9 @@ window.SNAPSHOT_DATA = [
  * -----------------------------------------------------------------------------
  * 1) Wikidata SPARQL API + Wikimedia Commons API  — IMPLEMENTED
  * -----------------------------------------------------------------------------
- * See js/wikidata-rounds.js. It is already wired into the game: every match
- * tries to fetch live rounds first (items with P18 image, P625 coordinates
- * and a year-precise P571 inception / P585 point in time) and falls back to
- * the entries above if the request fails. Configure it via LIVE_ROUNDS at the
- * top of js/game.js (year range, country, bounding box, classes).
+ * See js/wikidata-rounds.js and scripts/build-photos.js. The game's main
+ * photo source is data/photos.json, built by that script. The entries above
+ * are only used if that file can't be loaded.
  *
  * -----------------------------------------------------------------------------
  * 2) Historypin API  — https://www.historypin.org
