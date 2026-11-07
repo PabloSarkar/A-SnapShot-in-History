@@ -4,234 +4,144 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>A Snapshot in History</title>
-  <meta name="description" content="Study a historical photograph, pin where it was taken and guess the year. Five rounds, 50,000 points." />
-  <meta name="theme-color" content="#14110f" />
+  <meta name="description" content="Daily history games built from real photographs: where was it taken, and when?" />
+  <meta name="theme-color" content="#f6f1e6" />
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
 
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
-  <!-- Leaflet (OpenStreetMap tiles; no API key needed) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
-  <!-- Tailwind CSS (browser build via CDN, no build step) -->
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11"></script>
-
-  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/hub.css" />
 </head>
-<body class="h-dvh overflow-hidden">
-  <div id="app" class="flex h-dvh flex-col">
+<body>
+  <header class="hub-top">
+    <a href="./" class="hub-brand" aria-label="A Snapshot in History: all games">
+      <img src="./assets/favicon.svg" alt="" width="34" height="34" />
+      <span>A Snapshot <em>in</em> History</span>
+    </a>
+  </header>
 
-    <!-- ============================ HEADER ============================ -->
-    <header class="topbar flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
-      <a href="./" class="brand flex items-center gap-2.5" aria-label="A Snapshot in History — home">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span class="brand-name">A Snapshot <em>in</em> History</span>
+  <main class="hub-main">
+    <div class="hub-head">
+      <h1 class="hub-h">Play today</h1>
+      <p class="hub-date" id="hub-date" aria-label="Today’s date">
+        <span class="hub-date-day" id="hub-day"></span>
+        <span id="hub-month"></span>
+      </p>
+    </div>
+
+    <div class="hub-grid">
+      <!-- ============================== SNAPSHOT ============================== -->
+      <a class="game-card card-snapshot" href="./snapshot.html">
+        <span class="game-art" aria-hidden="true">
+          <svg viewBox="0 0 300 220">
+            <!-- map -->
+            <g opacity=".28" fill="none" stroke="#f6f1e6" stroke-width="2">
+              <path d="M10 70 C60 40 90 90 140 60 S230 40 290 70" />
+              <path d="M10 150 C70 120 110 170 160 140 S240 120 290 150" />
+              <path d="M70 10 C60 70 90 130 70 210" />
+              <path d="M220 10 C240 80 200 140 230 210" />
+            </g>
+            <!-- photo print -->
+            <g transform="rotate(-7 150 110)">
+              <rect x="70" y="38" width="160" height="134" rx="4" fill="#f6f1e6" />
+              <rect x="80" y="48" width="140" height="96" fill="#c9a46a" />
+              <circle cx="190" cy="72" r="13" fill="#f3d79a" />
+              <path d="M80 144 L80 118 L112 92 L138 112 L162 88 L220 128 L220 144 Z" fill="#7b5a34" />
+              <path d="M80 144 L80 128 L122 108 L160 126 L220 116 L220 144 Z" fill="#5c4226" />
+              <rect x="80" y="152" width="70" height="8" rx="4" fill="#d7cbb3" />
+            </g>
+            <!-- pin -->
+            <g transform="translate(206 26)">
+              <path d="M22 0 C10 0 0 10 0 22 C0 38 22 60 22 60 C22 60 44 38 44 22 C44 10 34 0 22 0 Z" fill="#e8553f" stroke="#1d2b28" stroke-width="3" />
+              <circle cx="22" cy="22" r="8" fill="#1d2b28" />
+            </g>
+            <!-- year tag -->
+            <g transform="translate(36 150) rotate(-8)">
+              <rect width="74" height="34" rx="9" fill="#f2b84b" stroke="#1d2b28" stroke-width="3" />
+              <text x="37" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="19" fill="#1d2b28">19??</text>
+            </g>
+          </svg>
+        </span>
+        <span class="game-name">Snapshot</span>
+        <span class="game-desc">One photograph. Pin where it was taken and guess the year.</span>
       </a>
-      <div class="flex items-center gap-2 sm:gap-3" aria-live="polite">
-        <span id="mode-label" class="mode-label" hidden></span>
-        <div class="stat">
-          <span class="stat-label">Round</span>
-          <span class="stat-value"><span id="round-num">1</span><span class="stat-dim"> of <span id="round-total">5</span></span></span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Score</span>
-          <span class="stat-value tabular-nums" id="total-score">0</span>
-        </div>
-      </div>
-    </header>
 
-    <!-- ============================ STAGE ============================ -->
-    <main class="relative min-h-0 flex-1">
-      <!-- Photo viewer (zoom + pan) -->
-      <section id="viewer" class="viewer absolute inset-0" aria-label="Historical photograph. Scroll or pinch to zoom, drag to pan.">
-        <div id="photo-wrap" class="photo-wrap">
-          <img id="photo" class="photo" alt="Historical photograph to identify" draggable="false" />
-        </div>
-
-        <div id="photo-loading" class="photo-state" hidden>
-          <div class="spinner" aria-hidden="true"></div>
-          <p>Developing photograph…</p>
-        </div>
-
-        <div id="photo-error" class="photo-state photo-error" hidden>
-          <img src="./assets/placeholder.svg" alt="" class="w-28 opacity-80" />
-          <p class="font-semibold">This photograph couldn’t be loaded.</p>
-          <p class="text-sm opacity-70">You can still make a guess — the round counts as normal.</p>
-        </div>
-
-        <div class="zoom-controls" role="group" aria-label="Photo zoom">
-          <button type="button" class="icon-btn" id="zoom-in" aria-label="Zoom in">+</button>
-          <button type="button" class="icon-btn" id="zoom-out" aria-label="Zoom out">−</button>
-          <button type="button" class="icon-btn" id="zoom-reset" aria-label="Reset zoom">⤢</button>
-        </div>
-      </section>
-
-      <!-- Floating / collapsible map -->
-      <aside id="map-panel" class="map-panel" aria-label="Guess map">
-        <div class="map-head">
-          <span id="map-hint" class="map-hint">Click the map to drop your pin</span>
-          <div class="flex items-center gap-1">
-            <button type="button" class="map-btn" id="map-pin" aria-pressed="false" title="Keep map open">
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M16 3l5 5-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z"/></svg>
-            </button>
-            <button type="button" class="map-btn" id="map-toggle" aria-expanded="false" title="Expand map">
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M4 4h6v2H7.4l4.3 4.3-1.4 1.4L6 7.4V10H4zm16 16h-6v-2h2.6l-4.3-4.3 1.4-1.4 4.3 4.3V14h2z"/></svg>
-            </button>
-          </div>
-        </div>
-        <div id="map" class="map"></div>
-      </aside>
-    </main>
-
-    <!-- ========================= CONTROL BAR ========================= -->
-    <footer class="controlbar px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
-
-      <!-- Guessing state -->
-      <div id="guess-controls" class="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
-        <div class="flex min-w-0 flex-1 items-center gap-3">
-          <button type="button" class="step-btn" id="year-down" aria-label="One year earlier">‹</button>
-          <div class="min-w-0 flex-1">
-            <div class="flex items-baseline justify-between">
-              <label for="year" class="field-label">Year</label>
-              <output id="year-out" for="year" class="year-out tabular-nums" data-unset="true">Drag to pick</output>
-            </div>
-            <input id="year" type="range" min="1900" max="2026" step="1" value="1963" class="year-slider" aria-describedby="year-out" />
-            <div class="ticks" aria-hidden="true">
-              <span style="left:0.000%">1900</span><span style="left:19.841%">1925</span><span style="left:39.683%">1950</span><span style="left:59.524%">1975</span><span style="left:79.365%">2000</span><span style="left:100.000%">2026</span>
-            </div>
-          </div>
-          <button type="button" class="step-btn" id="year-up" aria-label="One year later">›</button>
-        </div>
-
-        <div class="flex items-center gap-3 md:w-auto">
-          <ul class="checklist" aria-label="Guess requirements">
-            <li id="req-pin">Pin placed</li>
-            <li id="req-year">Year chosen</li>
-          </ul>
-          <button type="button" id="submit" class="primary-btn ml-auto" disabled>Submit guess</button>
-        </div>
+      <!-- ============================== TIMELINE ============================== -->
+      <div class="game-card card-timeline is-soon" aria-disabled="true">
+        <span class="game-badge">Coming soon</span>
+        <span class="game-art" aria-hidden="true">
+          <svg viewBox="0 0 300 220">
+            <line x1="20" y1="132" x2="280" y2="132" stroke="#efe6ff" stroke-width="4" stroke-linecap="round" />
+            <g fill="#efe6ff">
+              <circle cx="40" cy="132" r="7" /><circle cx="95" cy="132" r="7" /><circle cx="150" cy="132" r="7" />
+              <circle cx="205" cy="132" r="7" /><circle cx="260" cy="132" r="7" />
+            </g>
+            <g stroke="#2b1d47" stroke-width="3">
+              <rect x="16" y="58" width="48" height="56" rx="4" fill="#f6f1e6" transform="rotate(-5 40 86)" />
+              <rect x="126" y="54" width="48" height="56" rx="4" fill="#f6f1e6" transform="rotate(4 150 82)" />
+              <rect x="236" y="58" width="48" height="56" rx="4" fill="#f6f1e6" transform="rotate(-3 260 86)" />
+              <rect x="71" y="150" width="48" height="56" rx="4" fill="#f6f1e6" transform="rotate(5 95 178)" />
+              <rect x="181" y="150" width="48" height="56" rx="4" fill="#f6f1e6" transform="rotate(-4 205 178)" />
+            </g>
+            <g fill="#b79be6">
+              <rect x="22" y="66" width="36" height="28" transform="rotate(-5 40 86)" />
+              <rect x="132" y="62" width="36" height="28" transform="rotate(4 150 82)" />
+              <rect x="242" y="66" width="36" height="28" transform="rotate(-3 260 86)" />
+              <rect x="77" y="158" width="36" height="28" transform="rotate(5 95 178)" />
+              <rect x="187" y="158" width="36" height="28" transform="rotate(-4 205 178)" />
+            </g>
+            <g font-family="Inter, sans-serif" font-weight="800" font-size="15" fill="#efe6ff" text-anchor="middle">
+              <text x="40" y="42">1912</text><text x="150" y="38">1958</text><text x="260" y="42">2004</text>
+            </g>
+          </svg>
+        </span>
+        <span class="game-name">Timeline</span>
+        <span class="game-desc">Put five photographs in the order they were taken.</span>
       </div>
 
-      <!-- Result state -->
-      <div id="result-controls" class="hidden flex-col gap-3 md:flex-row md:items-center md:gap-6">
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <p class="round-points tabular-nums"><span id="res-total">0</span><span class="stat-dim"> / 10,000</span></p>
-            <p class="res-detail"><span class="dot dot-loc"></span><span id="res-dist"></span> · <b id="res-loc" class="tabular-nums"></b> pts</p>
-            <p class="res-detail"><span class="dot dot-time"></span><span id="res-year"></span> · <b id="res-time" class="tabular-nums"></b> pts</p>
-          </div>
-          <div class="meter mt-2" aria-hidden="true"><span id="res-meter"></span></div>
-          <p id="res-desc" class="res-desc"></p>
-          <a id="res-credit" class="res-credit" href="#" target="_blank" rel="noopener" hidden>Photo &amp; licence on Wikimedia Commons ↗</a>
-        </div>
-        <button type="button" id="next" class="primary-btn md:ml-auto">Next round</button>
-      </div>
-    </footer>
-  </div>
-
-  <!-- ============================ MENU ============================= -->
-  <div id="menu" class="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
-    <div id="menu-map" class="menu-map" aria-hidden="true"></div>
-    <div class="menu-shade" aria-hidden="true"></div>
-
-    <header class="menu-top">
-      <span class="menu-brand">
-        <span class="brand-mark brand-mark-lg" aria-hidden="true"></span>
-        <h1 id="menu-title" class="menu-title">A Snapshot <em>in</em> History</h1>
-      </span>
-      <button type="button" id="howto-open" class="ghost-btn">How to play</button>
-    </header>
-
-    <main class="menu-main">
-      <p class="menu-tagline">Where was it taken, and when?</p>
-
-      <div id="mode-grid" class="mode-grid">
-        <button type="button" class="mode-card" data-mode="classic">
-          <img class="mode-img" alt="" />
-          <span class="mode-text">
-            <span class="mode-name">Play</span>
-            <span class="mode-desc">Five random photographs, 1900 to today</span>
-          </span>
-        </button>
-        <button type="button" class="mode-card" data-mode="daily">
-          <img class="mode-img" alt="" />
-          <span class="mode-text">
-            <span class="mode-name">Daily</span>
-            <span class="mode-desc" id="daily-desc">Today’s five: the same for everyone</span>
-          </span>
-          <span class="mode-badge" id="daily-badge" hidden></span>
-        </button>
-        <button type="button" class="mode-card" data-mode="eras">
-          <img class="mode-img" alt="" />
-          <span class="mode-text">
-            <span class="mode-name">Eras</span>
-            <span class="mode-desc">Pick a period to focus on</span>
-          </span>
-        </button>
-      </div>
-
-      <div id="era-picker" class="era-picker" hidden>
-        <div class="era-head">
-          <button type="button" id="era-back" class="ghost-btn">‹ Back</button>
-          <p class="field-label">Choose an era</p>
-        </div>
-        <div id="era-list" class="era-list"></div>
-      </div>
-
-      <p id="menu-status" class="menu-status" aria-live="polite"></p>
-    </main>
-
-    <footer class="menu-foot">
-      <span id="menu-stats"></span>
-      <span>Photos from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a></span>
-    </footer>
-  </div>
-
-  <!-- ========================= HOW TO PLAY ========================= -->
-  <div id="howto" class="overlay" role="dialog" aria-modal="true" aria-labelledby="howto-title" hidden>
-    <div class="card max-w-lg">
-      <h2 id="howto-title" class="card-title">How to play</h2>
-      <ol class="how">
-        <li><b>Study</b> the photo: scroll or pinch to zoom, drag to pan.</li>
-        <li><b>Pin</b> where you think it was taken on the map.</li>
-        <li><b>Slide</b> to the year you think it was taken.</li>
-      </ol>
-      <p class="text-sm opacity-70">Each round scores up to 5,000 points for place and 5,000 for year: 50,000 per match.</p>
-      <button type="button" id="howto-close" class="primary-btn mt-5 w-full">Got it</button>
-    </div>
-  </div>
-
-  <!-- ============================= END ============================= -->
-  <div id="end-screen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="end-title" hidden>
-    <div class="card max-w-xl">
-      <p class="field-label">Match complete</p>
-      <h2 id="end-title" class="card-title tabular-nums"><span id="end-total">0</span><span class="stat-dim text-2xl"> / <span id="end-max">50,000</span></span></h2>
-      <p id="end-verdict" class="card-lede"></p>
-      <div class="overflow-x-auto">
-        <table class="summary">
-          <thead><tr><th>#</th><th>Photo</th><th class="num">Off by</th><th class="num">Points</th></tr></thead>
-          <tbody id="end-rows"></tbody>
-        </table>
-      </div>
-      <div class="mt-5 flex flex-col gap-2 sm:flex-row">
-        <button type="button" id="again" class="primary-btn w-full">Play again</button>
-        <button type="button" id="to-menu" class="secondary-btn w-full">Main menu</button>
+      <!-- =========================== OLDER OR NEWER =========================== -->
+      <div class="game-card card-oldernewer is-soon" aria-disabled="true">
+        <span class="game-badge">Coming soon</span>
+        <span class="game-art" aria-hidden="true">
+          <svg viewBox="0 0 300 220">
+            <g stroke="#3a1710" stroke-width="3">
+              <rect x="26" y="44" width="104" height="124" rx="5" fill="#f6f1e6" transform="rotate(-6 78 106)" />
+              <rect x="170" y="44" width="104" height="124" rx="5" fill="#f6f1e6" transform="rotate(6 222 106)" />
+            </g>
+            <rect x="37" y="56" width="82" height="70" fill="#8a8178" transform="rotate(-6 78 106)" />
+            <rect x="181" y="56" width="82" height="70" fill="#e8b58f" transform="rotate(6 222 106)" />
+            <g font-family="Inter, sans-serif" font-weight="800" text-anchor="middle">
+              <text x="76" y="158" font-size="20" fill="#3a1710" transform="rotate(-6 78 106)">1936</text>
+              <text x="224" y="158" font-size="26" fill="#3a1710" transform="rotate(6 222 106)">?</text>
+            </g>
+            <g transform="translate(150 106)">
+              <circle r="30" fill="#ffd8c7" stroke="#3a1710" stroke-width="3" />
+              <path d="M-11 -6 L0 -17 L11 -6" fill="none" stroke="#3a1710" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M-11 6 L0 17 L11 6" fill="none" stroke="#3a1710" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+            </g>
+          </svg>
+        </span>
+        <span class="game-name">Older or Newer</span>
+        <span class="game-desc">Is the next photo older or newer? Keep the streak alive.</span>
       </div>
     </div>
-  </div>
+  </main>
 
-  <noscript><div class="overlay"><div class="card">This game needs JavaScript enabled.</div></div></noscript>
+  <footer class="hub-foot">
+    Photographs from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>
+  </footer>
 
-  <script src="./js/scoring.js"></script>
-  <script src="./js/data.js"></script>
-  <script src="./data/photos/manifest.js"></script>
-  <script src="./js/wikidata-rounds.js"></script>
-  <script src="./js/game.js"></script>
+  <script>
+    // Today's date for the badge, in the visitor's language and time zone.
+    (function () {
+      var d = new Date();
+      document.getElementById('hub-day').textContent = d.getDate();
+      document.getElementById('hub-month').textContent = d.toLocaleDateString(undefined, { month: 'long' });
+      document.getElementById('hub-date').setAttribute('aria-label',
+        'Today: ' + d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }));
+    })();
+  </script>
 </body>
 </html>

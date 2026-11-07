@@ -484,3 +484,13 @@ button:disabled { cursor: not-allowed; }
   white-space: nowrap;
 }
 @media (max-width: 520px) { .mode-label { display: none; } }
+
+/* Link back to the games hub (index.html) from the game menu */
+.menu-actions { display: flex; align-items: center; gap: 8px; }
+a.ghost-btn { text-decoration: none; display: inline-flex; align-items: center; }
+@media (max-width: 560px) {
+  .menu-top { flex-wrap: wrap; row-gap: 12px; }
+  .menu-brand { flex: 1 1 100%; }
+  .menu-actions { flex: 1 1 100%; }
+  .menu-actions .ghost-btn { flex: 1; justify-content: center; text-align: center; }
+}

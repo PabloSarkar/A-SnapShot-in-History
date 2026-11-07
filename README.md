@@ -4,6 +4,13 @@ A browser game: study a historical photograph, drop a pin where you think it was
 
 Static HTML + vanilla JS + Tailwind (CDN) + Leaflet/OpenStreetMap. No build step, no backend, no API keys.
 
+## Pages
+
+- **`/`** (`index.html`) is the games hub: a "Play today" page with one card per game. Each card opens that game's own menu.
+- **`/snapshot`** (`snapshot.html`) is the photo game. Its menu has a "‹ All games" link back to the hub.
+
+Timeline and Older or Newer show on the hub as "Coming soon" cards. To add a game, copy a `.game-card` block in `index.html`, point its `href` at the game's page and give it a colour in `css/hub.css`.
+
 ## Game modes
 
 The main menu offers three modes:
@@ -93,7 +100,9 @@ node scripts/curate-photos.js             # apply it
 ## Files
 
 ```
-index.html        layout and screens
+index.html        games hub: one card per game
+snapshot.html     the Snapshot game (its own menu, rounds and results)
+css/hub.css       hub styles
 css/styles.css    component styles
 js/scoring.js     Haversine and scoring (pure functions)
 js/data.js        embedded fallback photos and Historypin docs
