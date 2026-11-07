@@ -77,6 +77,7 @@
   // ------------------------------------------------------------------ state
   var state = {
     photos: [],      // the photos for this match
+    reserve: [],     // spare photos, swapped in if a round's image fails to load
     round: 0,        // 0-based index
     total: 0,
     guessLatLng: null,
@@ -325,14 +326,20 @@
     el.photo.removeAttribute('src');
   }
 
-  function loadPhoto(url) {
+  /** Load `url`; calls onFail() instead of showing the error card if given. */
+  function loadPhoto(url, onFail) {
+    var fail = function () {
+      clearTimeout(imageTimer);
+      loadPhoto.current = null;
+      if (onFail) onFail(); else showPhotoError();
+    };
     clearTimeout(imageTimer);
     resetZoom(false);
     el.photo.classList.remove('is-loaded');
     el.error.hidden = true;
     el.loading.hidden = false;
 
-    if (!url) { showPhotoError(); return; }
+    if (!url) { fail(); return; }
 
     // Use a detached Image so a slow/broken URL can't leave the visible <img>
     // in a half-loaded state, and so stale loads from a previous round are ignored.
@@ -343,7 +350,7 @@
     probe.referrerPolicy = 'no-referrer';
     probe.onload = function () {
       if (loadPhoto.current !== token) return;
-      if (!probe.naturalWidth) { showPhotoError(); return; }
+      if (!probe.naturalWidth) { fail(); return; }
       clearTimeout(imageTimer);
       el.photo.src = url;
       el.loading.hidden = true;
@@ -351,12 +358,11 @@
     };
     probe.onerror = function () {
       if (loadPhoto.current !== token) return;
-      showPhotoError();
+      fail();
     };
     imageTimer = setTimeout(function () {
       if (loadPhoto.current !== token) return;
-      loadPhoto.current = null;
-      showPhotoError();
+      fail();
     }, IMAGE_TIMEOUT_MS);
     probe.src = url;
   }
@@ -467,6 +473,7 @@
       }
       var photos = pool.slice(0, ROUNDS_PER_MATCH);
       photos.forEach(function (p) { playedIds[p.id] = true; });
+      state.reserve = pool.slice(ROUNDS_PER_MATCH);
       beginMatch(photos);
     });
   }
@@ -500,7 +507,29 @@
     setMapPinned(false);
     setInputsLocked(false);
     setYear(Math.round((YEAR_MIN + YEAR_MAX) / 2), false);
-    loadPhoto(photo.image_url);
+    loadRoundPhoto(0);
+  }
+
+  /**
+   * Load this round's photo. If the image is broken or too slow, swap in a
+   * spare photo (up to 5 times) so the player never gets a blank round; the
+   * error card only appears if every attempt fails.
+   */
+  function loadRoundPhoto(attempt) {
+    var round = state.round;
+    var photo = state.photos[round];
+    loadPhoto(photo.image_url, function () {
+      if (state.round !== round || state.locked) return;
+      if (attempt < 5 && state.reserve.length) {
+        console.warn('Photo failed to load, swapping in another:', photo.image_url);
+        var spare = state.reserve.shift();
+        playedIds[spare.id] = true;
+        state.photos[round] = spare;
+        loadRoundPhoto(attempt + 1);
+      } else {
+        showPhotoError();
+      }
+    });
   }
 
   function submitGuess() {
