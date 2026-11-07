@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Pinpoint · The Daily Dose</title>
-  <meta name="description" content="Five places, one blank globe, 25 seconds each. Tap as close as you can; every round gets harder and is worth more." />
-  <meta name="theme-color" content="#070b16" />
+  <meta name="description" content="Find five places on a blank globe in 25 seconds each. A new daily challenge every day, plus unlimited practice." />
+  <meta name="theme-color" content="#0b0f17" />
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- 3D globe (WebGL, three.js bundled). No API key. -->
   <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.46.1/dist/globe.gl.min.js"
@@ -20,270 +20,304 @@
   <style>
     /* ===================================================================
      * Pinpoint — styles
+     * One typeface, one accent, flat panels. Colour is reserved for state
+     * (result quality, low time), not decoration.
      * =================================================================== */
     :root {
-      --space: #070b16;
-      --panel: rgba(13, 19, 36, 0.86);
-      --panel-solid: #111a30;
-      --line: rgba(190, 210, 255, 0.16);
-      --text: #eef2fb;
-      --text-dim: #9aa7c2;
-      --accent: #f2b84b;
-      --hit: #e8553f;
-      --good: #3ccf8e;
-      --mid: #f2c14b;
-      --bad: #ef5a4c;
-      --font-display: 'Fraunces', Georgia, serif;
-      --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      --d1: #3ccf8e; --d2: #8bd450; --d3: #f2c14b; --d4: #f28b3c; --d5: #e8553f;
+      --bg: #0b0f17;
+      --panel: #121826;
+      --panel-2: #171e2e;
+      --border: #242c3d;
+      --text: #e7eaf0;
+      --muted: #8b94a7;
+      --faint: #5c667b;
+      --accent: #f0b232;      /* primary actions, answer pin */
+      --accent-ink: #1b1405;
+      --good: #34c38f;
+      --mid: #e6b84a;
+      --bad: #e5534b;
+      --none: #4a5366;        /* timed out */
+      --radius: 10px;
+      --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
-    * { box-sizing: border-box; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
     body {
-      overflow: hidden;
-      background: radial-gradient(ellipse at 50% 55%, #14213f 0%, #0a1024 45%, var(--space) 100%);
-      color: var(--text);
-      font-family: var(--font-body);
-      -webkit-font-smoothing: antialiased;
-    }
-    /* faint starfield */
-    body::before {
-      content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.5;
-      background-image:
-        radial-gradient(1px 1px at 12% 22%, #fff 50%, transparent 51%),
-        radial-gradient(1px 1px at 78% 14%, #fff 50%, transparent 51%),
-        radial-gradient(1px 1px at 33% 81%, #cfe0ff 50%, transparent 51%),
-        radial-gradient(1px 1px at 88% 66%, #fff 50%, transparent 51%),
-        radial-gradient(1px 1px at 56% 9%, #cfe0ff 50%, transparent 51%),
-        radial-gradient(1.5px 1.5px at 6% 58%, #fff 50%, transparent 51%),
-        radial-gradient(1px 1px at 64% 92%, #fff 50%, transparent 51%),
-        radial-gradient(1.5px 1.5px at 93% 38%, #cfe0ff 50%, transparent 51%);
+      overflow: hidden; background: var(--bg); color: var(--text);
+      font-family: var(--font); font-size: 15px; line-height: 1.45;
+      -webkit-font-smoothing: antialiased; font-feature-settings: 'tnum' 1, 'cv11' 1;
     }
     [hidden] { display: none !important; }
-    button { font: inherit; cursor: pointer; }
-    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    a { color: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-    #globe { position: fixed; inset: 0; cursor: grab; }
+    #globe { position: fixed; inset: 0; cursor: grab; touch-action: none; }
     #globe.is-guessing { cursor: crosshair; }
-    #globe:active { cursor: grabbing; }
 
-    /* ---------------------------------------------------------- HUD (top) */
-    .hud {
-      position: fixed; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
-      z-index: 10; width: min(560px, calc(100vw - 20px));
-      display: grid; grid-template-columns: auto 1fr; gap: 8px;
+    /* ------------------------------------------------------------ top bar */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+      height: 52px; padding: 0 max(16px, env(safe-area-inset-left));
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+      background: rgba(11, 15, 23, 0.86); border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
     }
-    .hud-bar {
-      grid-column: 1 / -1;
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-      padding: 7px 10px 7px 12px; border-radius: 12px;
-      background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px);
-      font-size: 0.85rem;
-    }
-    .hud-bar a { color: var(--text-dim); text-decoration: none; font-weight: 600; white-space: nowrap; }
-    .hud-bar a:hover { color: var(--text); }
-    .hud-title { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; letter-spacing: 0.01em; }
-    .hud-round { color: var(--text-dim); font-weight: 600; white-space: nowrap; }
-    .score-box {
-      display: grid; place-items: center; align-content: center; min-width: 92px; padding: 6px 10px;
-      border-radius: 12px; background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px);
-    }
-    .score-box span { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.12em; color: var(--text-dim); }
-    .score-box b { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .back { justify-self: start; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: 0.875rem; font-weight: 500; }
+    .back:hover { color: var(--text); }
+    .back svg { flex: none; }
+    .tb-center { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+    .tb-title { font-weight: 700; font-size: 1rem; letter-spacing: -0.01em; }
+    .tb-mode { font-size: 0.8rem; color: var(--muted); }
+    .tb-score { justify-self: end; text-align: right; line-height: 1.15; }
+    .tb-score .label { display: block; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+    .tb-score b { font-size: 1.05rem; font-weight: 700; }
+
+    /* ------------------------------------------------------------- prompt */
     .prompt {
-      border-radius: 12px; overflow: hidden;
-      background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px);
+      position: fixed; z-index: 20; top: 64px; left: 50%; transform: translateX(-50%);
+      width: min(520px, calc(100vw - 24px));
+      background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); overflow: hidden;
     }
-    .prompt-level {
-      display: flex; justify-content: space-between; gap: 8px;
-      padding: 4px 12px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
-      color: #0b1222; background: var(--level, var(--d1));
+    .prompt-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 14px 0; font-size: 0.8rem; color: var(--muted);
     }
-    .prompt-text { padding: 9px 12px 8px; font-size: 1rem; line-height: 1.3; }
-    .prompt-text b { font-weight: 800; }
-    .prompt-text .where { color: var(--text-dim); font-weight: 600; }
-    .timer { position: relative; height: 22px; margin: 0 12px 10px; border-radius: 999px; background: rgba(255,255,255,0.09); overflow: hidden; }
-    .timer-fill {
-      position: absolute; inset: 0; transform-origin: left center;
-      background: linear-gradient(90deg, #3ccf8e, #8bd450);
-      border-radius: 999px;
-    }
-    .timer.is-low .timer-fill { background: linear-gradient(90deg, #ef5a4c, #f28b3c); }
-    .timer.is-low { animation: pulse 0.5s ease-in-out infinite alternate; }
-    .timer-text {
-      position: absolute; inset: 0; display: grid; place-items: center;
-      font-size: 0.8rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
-    }
-    @keyframes pulse { from { box-shadow: 0 0 0 0 rgba(239,90,76,0); } to { box-shadow: 0 0 0 3px rgba(239,90,76,0.45); } }
+    .steps { display: flex; gap: 4px; list-style: none; }
+    .steps li { width: 22px; height: 6px; border-radius: 2px; background: var(--border); }
+    .steps li.is-current { background: var(--text); }
+    .steps li.good { background: var(--good); }
+    .steps li.mid { background: var(--mid); }
+    .steps li.bad { background: var(--bad); }
+    .steps li.none { background: var(--none); }
+    .prompt-body { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 8px 14px 12px; }
+    .eyebrow { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+    .place { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; margin-top: 2px; }
+    .region { color: var(--muted); font-size: 0.9rem; }
+    .clock { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; min-width: 3.2ch; text-align: right; }
+    .clock.is-low { color: var(--bad); }
+    .timebar { height: 3px; background: var(--border); }
+    .timebar-fill { height: 100%; background: var(--text); transform-origin: left center; }
+    .timebar.is-low .timebar-fill { background: var(--bad); }
 
     .hint {
-      position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%);
-      z-index: 5; font-size: 0.82rem; color: var(--text-dim); text-align: center; pointer-events: none;
-      padding: 6px 12px; border-radius: 999px; background: rgba(7,11,22,0.55);
+      position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+      z-index: 5; font-size: 0.78rem; color: var(--faint); pointer-events: none; white-space: nowrap;
     }
 
-    /* ------------------------------------------------------- result sheet */
+    /* -------------------------------------------------- round result sheet */
     .sheet {
-      position: fixed; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%);
-      z-index: 20; width: min(560px, calc(100vw - 20px));
-      display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 14px;
-      padding: 14px 16px; border-radius: 16px;
-      background: var(--panel-solid); border: 1px solid var(--line);
-      box-shadow: 0 18px 40px rgba(0,0,0,0.5);
-      animation: rise 0.25s ease-out;
+      position: fixed; z-index: 20; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+      width: min(520px, calc(100vw - 24px));
+      display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px 16px;
+      padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     }
-    @keyframes rise { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
-    .sheet-points { font-family: var(--font-display); font-weight: 800; font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
-    .sheet-points.is-zero { color: var(--bad); }
-    .sheet-detail { grid-column: 1; font-size: 0.92rem; color: var(--text-dim); line-height: 1.4; }
-    .sheet-detail b { color: var(--text); }
-    .sheet .btn { grid-row: 1 / span 2; grid-column: 2; }
+    .sheet-points { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+    .sheet-sub { font-size: 0.875rem; color: var(--muted); }
+    .stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); padding-top: 10px; }
+    .stats div + div { border-left: 1px solid var(--border); padding-left: 12px; }
+    .stats dt { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+    .stats dd { font-weight: 600; margin-top: 1px; }
 
+    /* ------------------------------------------------------------ buttons */
     .btn {
-      padding: 12px 20px; border: 0; border-radius: 12px;
-      background: var(--accent); color: #1a1406; font-weight: 800; white-space: nowrap;
-      box-shadow: 0 6px 18px rgba(242,184,75,0.25);
-      transition: transform 0.12s ease, filter 0.12s ease;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid transparent;
+      font-weight: 600; font-size: 0.9rem; text-decoration: none; white-space: nowrap;
+      transition: background-color 0.12s ease, border-color 0.12s ease;
     }
-    .btn:hover { filter: brightness(1.07); transform: translateY(-1px); }
-    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line); box-shadow: none; }
-    .btn-ghost:hover { background: rgba(255,255,255,0.06); }
+    .btn-primary { background: var(--accent); color: var(--accent-ink); }
+    .btn-primary:hover { background: #f5c04f; }
+    .btn-primary:focus-visible, .mode:focus-visible { outline: 2px solid rgba(231, 234, 240, 0.7); outline-offset: 2px; }
+    .btn-secondary { background: transparent; border-color: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: var(--panel-2); border-color: #313b50; }
 
-    /* ------------------------------------------------------------ overlays */
+    /* ----------------------------------------------------------- overlays */
     .overlay {
-      position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; overflow-y: auto;
-      background: rgba(5, 8, 18, 0.62); backdrop-filter: blur(3px);
+      position: fixed; inset: 52px 0 0; z-index: 40; overflow-y: auto;
+      display: grid; place-items: center; padding: 24px 12px;
+      background: rgba(11, 15, 23, 0.72);
     }
-    .card {
-      width: 100%; max-width: 480px; padding: 26px 24px;
-      border-radius: 20px; background: var(--panel-solid); border: 1px solid var(--line);
-      box-shadow: 0 24px 60px rgba(0,0,0,0.55); text-align: center;
+    .panel {
+      width: 100%; max-width: 440px; padding: 24px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
     }
-    .card h1, .card h2 { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.01em; }
-    .card h1 { font-size: 2.4rem; }
-    .card h2 { font-size: 1.9rem; }
-    .lede { margin-top: 8px; color: var(--text-dim); line-height: 1.5; }
-    .levels { margin: 18px 0 6px; display: grid; gap: 6px; text-align: left; }
-    .levels li {
-      list-style: none; display: grid; grid-template-columns: 74px 1fr auto; align-items: center; gap: 10px;
-      padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); font-size: 0.9rem;
-    }
-    .levels .tag { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 999px; color: #0b1222; text-align: center; }
-    .levels .mult { font-weight: 800; color: var(--accent); }
-    .card .actions { margin-top: 20px; display: grid; gap: 8px; }
-    .small { margin-top: 12px; font-size: 0.8rem; color: var(--text-dim); }
-    .small a { color: var(--text-dim); }
+    .panel-wide { max-width: 520px; }
+    .panel h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .muted { color: var(--muted); }
+    .panel > .muted { margin-top: 4px; }
 
-    .total { margin-top: 6px; font-family: var(--font-display); font-weight: 800; font-size: 3rem; line-height: 1; font-variant-numeric: tabular-nums; }
-    .total span { font-size: 1.1rem; color: var(--text-dim); font-family: var(--font-body); font-weight: 600; }
-    .emoji { margin-top: 10px; font-size: 1.7rem; letter-spacing: 0.15em; }
-    .breakdown { width: 100%; margin-top: 16px; border-collapse: collapse; font-size: 0.86rem; text-align: left; }
-    .breakdown th { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); font-weight: 700; padding: 0 6px 6px; border-bottom: 1px solid var(--line); }
-    .breakdown td { padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    .breakdown .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .breakdown .place { color: var(--text); }
-    .breakdown .sub { display: block; color: var(--text-dim); font-size: 0.78rem; }
-    .copied { min-height: 1.2em; margin-top: 8px; font-size: 0.85rem; color: var(--good); }
+    .modes { display: grid; gap: 8px; margin-top: 20px; }
+    .mode {
+      display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px;
+      width: 100%; padding: 14px 16px; text-align: left;
+      background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius);
+      transition: border-color 0.12s ease, background-color 0.12s ease;
+    }
+    .mode:hover { border-color: #39445c; background: #1a2234; }
+    .mode.is-primary { border-color: rgba(240, 178, 50, 0.55); }
+    .mode-title { font-weight: 600; }
+    .mode-desc { grid-column: 1; font-size: 0.85rem; color: var(--muted); }
+    .mode-side { grid-row: 1 / span 2; grid-column: 2; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-align: right; }
+    .mode.is-primary .mode-side { color: var(--accent); }
 
-    .error-card p { color: var(--text-dim); margin-top: 8px; line-height: 1.5; }
+    .rules { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 0.85rem; }
+    .rules th { text-align: left; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); padding: 0 0 6px; }
+    .rules td { padding: 6px 0; border-top: 1px solid var(--border); }
+    .rules .num { text-align: right; }
+    .rules td.num { font-weight: 600; }
+    .fine { margin-top: 14px; font-size: 0.8rem; color: var(--faint); }
+
+    .res-total { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
+    .res-total b { font-size: 2.6rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+    .squares { display: flex; gap: 6px; margin-top: 14px; }
+    .squares span { width: 28px; height: 28px; border-radius: 6px; background: var(--none); }
+    .squares .good { background: var(--good); } .squares .mid { background: var(--mid); } .squares .bad { background: var(--bad); }
+    .res-stats { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 18px; border: 1px solid var(--border); border-radius: var(--radius); }
+    .res-stats div { padding: 10px 12px; }
+    .res-stats div + div { border-left: 1px solid var(--border); }
+    .res-stats dt { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+    .res-stats dd { font-weight: 600; margin-top: 2px; }
+    .breakdown { width: 100%; margin-top: 18px; border-collapse: collapse; font-size: 0.875rem; }
+    .breakdown th { text-align: left; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); padding: 0 8px 6px 0; }
+    .breakdown td { padding: 9px 8px 9px 0; border-top: 1px solid var(--border); vertical-align: top; }
+    .breakdown .num { text-align: right; padding-right: 0; white-space: nowrap; }
+    .breakdown .sub { display: block; font-size: 0.78rem; color: var(--muted); }
+    .breakdown .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: 1px; background: var(--none); }
+    .breakdown .dot.good { background: var(--good); } .breakdown .dot.mid { background: var(--mid); } .breakdown .dot.bad { background: var(--bad); }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
+    .actions .btn-primary { grid-column: 1 / -1; }
+    .note { margin-top: 12px; font-size: 0.8rem; color: var(--muted); text-align: center; min-height: 1.2em; }
+    .note.is-ok { color: var(--good); }
 
     /* ------------------------------------------------------------ markers */
     .pin { transform: translate(-50%, -100%); pointer-events: none; }
-    .pin svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6)); }
+    .pin svg { display: block; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
     .pin-label {
       position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -4px);
-      white-space: nowrap; font-size: 12px; font-weight: 800; padding: 2px 7px; border-radius: 6px;
-      background: rgba(7,11,22,0.85); color: #fff;
+      white-space: nowrap; font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+      background: rgba(11, 15, 23, 0.9); color: var(--text); border: 1px solid var(--border);
     }
     .pin-label.is-below { bottom: auto; top: 100%; transform: translate(-50%, 4px); }
 
-    @media (max-width: 520px) {
-      .hud { gap: 6px; }
-      .score-box { min-width: 76px; }
-      .score-box b { font-size: 1.3rem; }
-      .prompt-text { font-size: 0.95rem; }
+    @media (max-width: 560px) {
+      .back span { display: none; }
+      .tb-mode { display: none; }
+      .prompt { top: 60px; }
+      .place { font-size: 1.15rem; }
+      .clock { font-size: 1.25rem; }
       .sheet { grid-template-columns: 1fr; }
-      .sheet .btn { grid-row: auto; grid-column: 1; width: 100%; }
-      .card h1 { font-size: 2rem; }
-      .total { font-size: 2.4rem; }
+      .sheet .btn { width: 100%; }
       .hint { display: none; }
+      .panel { padding: 20px; }
+      .res-total b { font-size: 2.2rem; }
     }
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation: none !important; transition: none !important; }
-    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
 </head>
 <body>
-  <div id="globe" aria-label="Interactive globe. Drag to spin, scroll or pinch to zoom, click to place your guess." role="application"></div>
+  <div id="globe" role="application" aria-label="Globe. Drag to rotate, scroll or pinch to zoom, click to place your guess."></div>
 
-  <!-- =============================== HUD =============================== -->
-  <div class="hud" id="hud" hidden>
-    <div class="hud-bar">
-      <a href="./">‹ All games</a>
-      <span class="hud-title">Pinpoint</span>
-      <span class="hud-round" id="hud-round">Round 1 of 5</span>
+  <!-- ============================== TOP BAR ============================== -->
+  <header class="topbar">
+    <a class="back" href="./" aria-label="Back to The Daily Dose">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>The Daily Dose</span>
+    </a>
+    <div class="tb-center"><span class="tb-title">Pinpoint</span><span class="tb-mode" id="tb-mode"></span></div>
+    <div class="tb-score" aria-live="polite"><span class="label">Score</span><b id="tb-score">0</b></div>
+  </header>
+
+  <!-- =============================== PROMPT ============================== -->
+  <section class="prompt" id="prompt" aria-live="assertive" hidden>
+    <div class="prompt-head">
+      <ol class="steps" id="steps" aria-hidden="true"><li></li><li></li><li></li><li></li><li></li></ol>
+      <span id="prompt-meta">Round 1 of 5 · Very easy · ×1</span>
     </div>
-    <div class="score-box" aria-live="polite"><span>SCORE</span><b id="hud-score">0</b></div>
-    <div class="prompt" id="prompt">
-      <div class="prompt-level" id="prompt-level"><span id="level-name">Very easy</span><span id="level-mult">×1</span></div>
-      <p class="prompt-text" id="prompt-text" aria-live="assertive"></p>
-      <div class="timer" id="timer" role="timer" aria-label="Time left">
-        <div class="timer-fill" id="timer-fill"></div>
-        <div class="timer-text" id="timer-text">25.0s</div>
+    <div class="prompt-body">
+      <div>
+        <p class="eyebrow">Locate</p>
+        <p class="place" id="place"></p>
+        <p class="region" id="region"></p>
       </div>
+      <p class="clock" id="clock" role="timer" aria-label="Seconds left">25.0</p>
     </div>
-  </div>
-  <p class="hint" id="hint" hidden>Drag to spin · scroll to zoom · click to guess</p>
+    <div class="timebar" id="timebar"><div class="timebar-fill" id="timebar-fill"></div></div>
+  </section>
+  <p class="hint" id="hint" hidden>Drag to rotate · Scroll to zoom · Click to guess</p>
 
-  <!-- ========================== ROUND RESULT ========================== -->
-  <div class="sheet" id="sheet" role="status" hidden>
-    <p class="sheet-points" id="sheet-points">+0</p>
-    <p class="sheet-detail" id="sheet-detail"></p>
-    <button type="button" class="btn" id="next-btn">Next round</button>
-  </div>
+  <!-- ============================ ROUND RESULT =========================== -->
+  <section class="sheet" id="sheet" role="status" hidden>
+    <div>
+      <p class="sheet-points" id="sheet-points">+0</p>
+      <p class="sheet-sub" id="sheet-sub"></p>
+    </div>
+    <button type="button" class="btn btn-primary" id="next-btn">Next round</button>
+    <dl class="stats">
+      <div><dt>Distance</dt><dd id="st-dist">—</dd></div>
+      <div><dt>Base</dt><dd id="st-base">—</dd></div>
+      <div><dt>Multiplier</dt><dd id="st-mult">—</dd></div>
+    </dl>
+  </section>
 
-  <!-- ============================== START ============================== -->
+  <!-- =============================== START =============================== -->
   <div class="overlay" id="start" role="dialog" aria-modal="true" aria-labelledby="start-title">
-    <div class="card">
+    <div class="panel">
       <h1 id="start-title">Pinpoint</h1>
-      <p class="lede">Five places. One blank globe: no borders, no names. You get 25 seconds to tap as close as you can to each one.</p>
-      <ul class="levels" id="levels"></ul>
-      <p class="small">Up to 1,000 points per place, multiplied by the round. Perfect game: 10,000.</p>
-      <div class="actions">
-        <button type="button" class="btn" id="start-btn">Start</button>
-        <a href="./" class="btn btn-ghost" style="text-decoration:none">‹ All games</a>
+      <p class="muted">Find five places on a blank globe, with 25 seconds each. Every round is harder and worth more.</p>
+      <div class="modes">
+        <button type="button" class="mode is-primary" id="daily-btn">
+          <span class="mode-title" id="daily-title">Daily challenge</span>
+          <span class="mode-desc" id="daily-desc">The same five places for everyone today.</span>
+          <span class="mode-side" id="daily-side"></span>
+        </button>
+        <button type="button" class="mode" id="practice-btn">
+          <span class="mode-title">Practice</span>
+          <span class="mode-desc">Random places. Play as often as you like.</span>
+          <span class="mode-side">Unlimited</span>
+        </button>
       </div>
+      <table class="rules">
+        <thead><tr><th>Round</th><th>Places</th><th class="num">Multiplier</th></tr></thead>
+        <tbody id="rules"></tbody>
+      </table>
+      <p class="fine">Up to 1,000 points per place depending on distance, multiplied by the round. Maximum 10,000.</p>
     </div>
   </div>
 
-  <!-- ============================= RESULTS ============================= -->
-  <div class="overlay" id="results" role="dialog" aria-modal="true" aria-labelledby="results-title" hidden>
-    <div class="card">
-      <h2 id="results-title">Your Pinpoint</h2>
-      <p class="total"><b id="total">0</b> <span>/ 10,000</span></p>
-      <p class="emoji" id="emoji" aria-label="Round results"></p>
-      <div style="overflow-x:auto">
-        <table class="breakdown">
-          <thead><tr><th>Round</th><th>Place</th><th class="num">Off by</th><th class="num">Points</th></tr></thead>
-          <tbody id="breakdown"></tbody>
-        </table>
-      </div>
+  <!-- ============================== RESULTS ============================== -->
+  <div class="overlay" id="results" role="dialog" aria-modal="true" aria-labelledby="res-title" hidden>
+    <div class="panel panel-wide">
+      <p class="eyebrow" id="res-title">Daily challenge</p>
+      <div class="res-total"><b id="total">0</b><span class="muted">/ 10,000</span></div>
+      <div class="squares" id="squares" role="img"></div>
+      <dl class="res-stats">
+        <div><dt>Average distance</dt><dd id="rs-avg">—</dd></div>
+        <div><dt>Closest</dt><dd id="rs-best">—</dd></div>
+        <div><dt>Timed out</dt><dd id="rs-timeouts">0</dd></div>
+      </dl>
+      <table class="breakdown">
+        <thead><tr><th>Round</th><th>Place</th><th class="num">Distance</th><th class="num">Points</th></tr></thead>
+        <tbody id="breakdown"></tbody>
+      </table>
       <div class="actions">
-        <button type="button" class="btn" id="share-btn">Share results</button>
-        <button type="button" class="btn btn-ghost" id="again-btn">Play again</button>
-        <a href="./" class="btn btn-ghost" style="text-decoration:none">‹ All games</a>
+        <button type="button" class="btn btn-primary" id="share-btn">Share result</button>
+        <button type="button" class="btn btn-secondary" id="practice-again-btn">Practice</button>
+        <a class="btn btn-secondary" href="./">All games</a>
       </div>
-      <p class="copied" id="copied" aria-live="polite"></p>
+      <p class="note" id="res-note" aria-live="polite"></p>
     </div>
   </div>
 
-  <!-- ============================ NO WEBGL ============================ -->
+  <!-- ============================== NO WEBGL ============================= -->
   <div class="overlay" id="no-globe" hidden>
-    <div class="card error-card">
-      <h2>The globe couldn’t load</h2>
-      <p>Pinpoint needs WebGL. Try updating your browser, turning on hardware acceleration, or checking your connection.</p>
-      <div class="actions"><a href="./" class="btn" style="text-decoration:none">‹ All games</a></div>
+    <div class="panel">
+      <h1>The globe couldn’t load</h1>
+      <p class="muted">Pinpoint needs WebGL. Try updating your browser, enabling hardware acceleration, or checking your connection.</p>
+      <div class="actions"><a class="btn btn-primary" href="./">All games</a></div>
     </div>
   </div>
 
@@ -304,6 +338,7 @@
      * built offline from a gazetteer such as GeoNames (cities15000 for the
      * easy tiers, filtered by population / capital flags; cities1000 plus
      * island & settlement features for the hard tiers). Keep the same shape.
+     * Larger pools also make daily challenges repeat far less often.
      * ===================================================================== */
     var poolRound1 = [ // famous global megacities
       { name: 'Tokyo', where: 'Japan', lat: 35.6762, lng: 139.6503 },
@@ -367,22 +402,72 @@
     ];
 
     /* Rounds get harder automatically and are worth more. */
+
+    /* Rounds get harder automatically and are worth more. */
     var ROUNDS = [
-      { name: 'Very easy', mult: 1.0, pool: poolRound1, color: 'var(--d1)' },
-      { name: 'Easy',      mult: 1.5, pool: poolRound2, color: 'var(--d2)' },
-      { name: 'Medium',    mult: 2.0, pool: poolRound3, color: 'var(--d3)' },
-      { name: 'Hard',      mult: 2.5, pool: poolRound4, color: 'var(--d4)' },
-      { name: 'Very hard', mult: 3.0, pool: poolRound5, color: 'var(--d5)' }
+      { name: 'Very easy', places: 'Megacities', mult: 1.0, pool: poolRound1 },
+      { name: 'Easy', places: 'Major capitals', mult: 1.5, pool: poolRound2 },
+      { name: 'Medium', places: 'Regional hubs', mult: 2.0, pool: poolRound3 },
+      { name: 'Hard', places: 'Smaller and remote cities', mult: 2.5, pool: poolRound4 },
+      { name: 'Very hard', places: 'Obscure towns and islands', mult: 3.0, pool: poolRound5 }
     ];
     var ROUND_SECONDS = 25;
     var MAX_TOTAL = ROUNDS.reduce(function (s, r) { return s + 1000 * r.mult; }, 0); // 10,000
 
     /* =====================================================================
+     * DAILY CHALLENGE
+     * Everyone gets the same five places on a given UTC day: the date seeds
+     * a small PRNG that picks one place per pool. One attempt per day, kept
+     * in localStorage. If the page is reloaded mid-round, that round counts
+     * as timed out (so a hard round can't be skipped by reloading).
+     * ===================================================================== */
+    var DAILY_EPOCH = '2026-11-07';          // Daily #1
+    var DAILY_KEY = 'pinpoint.daily.v1';
+
+    function todayKey() { return new Date().toISOString().slice(0, 10); }
+    function dailyNumber(day) { return Math.round((Date.parse(day) - Date.parse(DAILY_EPOCH)) / 864e5) + 1; }
+    function hashStr(s) {
+      var h = 0x811c9dc5;
+      for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+      return h >>> 0;
+    }
+    function mulberry32(a) {
+      return function () {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        var t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function dailyTargets(day) {
+      var rng = mulberry32(hashStr('pinpoint:' + day));
+      return ROUNDS.map(function (r) { return r.pool[Math.floor(rng() * r.pool.length)]; });
+    }
+    function readDaily() {
+      try {
+        var d = JSON.parse(localStorage.getItem(DAILY_KEY));
+        return d && d.date === todayKey() ? d : null;
+      } catch (e) { return null; }
+    }
+    function writeDaily(d) {
+      try { localStorage.setItem(DAILY_KEY, JSON.stringify(d)); } catch (e) { /* private mode: play still works */ }
+    }
+    function timeToNextDaily() {
+      var now = new Date();
+      var next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+      var mins = Math.max(0, Math.ceil((next - now.getTime()) / 60000));
+      var h = Math.floor(mins / 60), m = mins % 60;
+      return (h ? h + 'h ' : '') + m + 'm';
+    }
+    function longDate(day) {
+      return new Date(day + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    /* =====================================================================
      * SCORING
      * Base 0–1,000 from great-circle (Haversine) distance:
-     *   ≤ 10 km → 1,000; beyond that it decays smoothly,
-     *   1000 · e^(−(d − 10) / 1500)  → ~940 at 100 km, ~720 at 500 km,
-     *   ~520 at 1,000 km, ~265 at 2,000 km, ~35 at 5,000 km.
+     *   ≤ 10 km → 1,000; beyond that 1000 · e^(−(d − 10) / 1500)
+     *   (~940 at 100 km, ~720 at 500 km, ~520 at 1,000 km, ~35 at 5,000 km).
      * Round score = base × the round's multiplier.
      * ===================================================================== */
     var EARTH_RADIUS_KM = 6371.0088;
@@ -398,32 +483,38 @@
       if (km <= 10) return 1000;
       return Math.max(0, Math.round(1000 * Math.exp(-(km - 10) / 1500)));
     }
+    /** Result quality, used for colours and the share squares. */
+    function grade(r) { return r.timedOut ? 'none' : r.base >= 750 ? 'good' : r.base >= 350 ? 'mid' : 'bad'; }
+    var EMOJI = { good: '🟩', mid: '🟨', bad: '🟥', none: '⬛' };
 
     /* ============================================================ helpers */
     function $(id) { return document.getElementById(id); }
     function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
     function fmtKm(km) { return km < 10 ? km.toFixed(1) + ' km' : fmt(km) + ' km'; }
-    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-    function emojiFor(r) { return r.timedOut ? '⏱️' : r.base >= 750 ? '🟢' : r.base >= 350 ? '🟡' : '🔴'; }
     function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function randomPick(pool) { return pool[Math.floor(Math.random() * pool.length)]; }
 
     var el = {
-      globe: $('globe'), hud: $('hud'), hint: $('hint'),
-      round: $('hud-round'), score: $('hud-score'), level: $('prompt-level'),
-      levelName: $('level-name'), levelMult: $('level-mult'), prompt: $('prompt-text'),
-      timer: $('timer'), timerFill: $('timer-fill'), timerText: $('timer-text'),
-      sheet: $('sheet'), sheetPoints: $('sheet-points'), sheetDetail: $('sheet-detail'), next: $('next-btn'),
-      start: $('start'), startBtn: $('start-btn'), levels: $('levels'),
-      results: $('results'), total: $('total'), emoji: $('emoji'), breakdown: $('breakdown'),
-      share: $('share-btn'), again: $('again-btn'), copied: $('copied'), noGlobe: $('no-globe')
+      globe: $('globe'), tbMode: $('tb-mode'), tbScore: $('tb-score'),
+      prompt: $('prompt'), steps: $('steps').children, meta: $('prompt-meta'), place: $('place'), region: $('region'),
+      clock: $('clock'), timebar: $('timebar'), timebarFill: $('timebar-fill'), hint: $('hint'),
+      sheet: $('sheet'), sheetPoints: $('sheet-points'), sheetSub: $('sheet-sub'), next: $('next-btn'),
+      stDist: $('st-dist'), stBase: $('st-base'), stMult: $('st-mult'),
+      start: $('start'), dailyBtn: $('daily-btn'), dailyTitle: $('daily-title'), dailyDesc: $('daily-desc'),
+      dailySide: $('daily-side'), practiceBtn: $('practice-btn'), rules: $('rules'),
+      results: $('results'), resTitle: $('res-title'), total: $('total'), squares: $('squares'),
+      rsAvg: $('rs-avg'), rsBest: $('rs-best'), rsTimeouts: $('rs-timeouts'), breakdown: $('breakdown'),
+      share: $('share-btn'), practiceAgain: $('practice-again-btn'), note: $('res-note'), noGlobe: $('no-globe')
     };
 
     /* ============================================================== state */
     var state = {
+      mode: null,         // 'daily' | 'practice'
+      day: null,          // daily date key
       phase: 'idle',      // idle | guessing | revealed | done
-      round: 0,           // 0-based
-      targets: [],        // one place per round
-      results: [],        // per-round { place, km, base, points, timedOut }
+      round: 0,
+      targets: [],
+      results: [],        // { name, where, mult, km, base, points, timedOut }
       total: 0,
       deadline: 0,
       raf: 0
@@ -437,10 +528,15 @@
       wrap.className = 'pin';
       wrap.innerHTML =
         (label ? '<span class="pin-label' + (below ? ' is-below' : '') + '">' + esc(label) + '</span>' : '') +
-        '<svg width="26" height="36" viewBox="0 0 26 36" aria-hidden="true">' +
-          '<path d="M13 1C6.4 1 1 6.3 1 12.9 1 22 13 35 13 35s12-13 12-22.1C25 6.3 19.6 1 13 1z" fill="' + color + '" stroke="#0b1222" stroke-width="2"/>' +
-          '<circle cx="13" cy="13" r="4.5" fill="#0b1222"/></svg>';
+        '<svg width="22" height="30" viewBox="0 0 26 36" aria-hidden="true">' +
+          '<path d="M13 1C6.4 1 1 6.3 1 12.9 1 22 13 35 13 35s12-13 12-22.1C25 6.3 19.6 1 13 1z" fill="' + color + '" stroke="#0b0f17" stroke-width="2"/>' +
+          '<circle cx="13" cy="13" r="4" fill="#0b0f17"/></svg>';
       return wrap;
+    }
+
+    function overviewAltitude() {
+      var w = window.innerWidth, h = window.innerHeight;
+      return w >= h ? 2.5 : Math.min(4.2, 2.5 * Math.max(1, (h / w) * 0.76));
     }
 
     function initGlobe() {
@@ -449,50 +545,29 @@
         .globeImageUrl('./assets/earth-blue-marble.jpg')   // NASA Blue Marble: no borders, labels or city lights
         .bumpImageUrl('./assets/earth-topology.png')
         .backgroundColor('rgba(0,0,0,0)')
-        .showAtmosphere(true)
-        .atmosphereColor('#7fb2ff')
-        .atmosphereAltitude(0.17)
-        .width(window.innerWidth)
-        .height(window.innerHeight)
-        // markers
-        .htmlElementsData([])
-        .htmlLat('lat').htmlLng('lng').htmlAltitude(0.005)
+        .showAtmosphere(true).atmosphereColor('#8fb3e8').atmosphereAltitude(0.12)
+        .width(window.innerWidth).height(window.innerHeight)
+        .htmlElementsData([]).htmlLat('lat').htmlLng('lng').htmlAltitude(0.005)
         .htmlElement(function (d) { return pinElement(d.color, d.label, d.below); })
-        // guess → target line
-        .arcsData([])
-        .arcColor(function () { return ['#ffd36b', '#e8553f']; })
-        .arcStroke(0.45)
-        .arcAltitudeAutoScale(0.35)
-        // pulse on the answer
-        .ringsData([])
-        .ringColor(function () { return function (t) { return 'rgba(242,184,75,' + (1 - t) + ')'; }; })
-        .ringMaxRadius(3.2).ringPropagationSpeed(2.4).ringRepeatPeriod(900)
-        // We detect taps ourselves (below): the library's click relies on a hover
-        // raycast that runs every ~50 ms, which misses quick taps on touchscreens.
+        .arcsData([]).arcColor(function () { return ['#f0b232', '#e5534b']; }).arcStroke(0.4).arcAltitudeAutoScale(0.35)
+        .ringsData([]).ringColor(function () { return function (t) { return 'rgba(240,178,50,' + (1 - t) * 0.9 + ')'; }; })
+        .ringMaxRadius(2.6).ringPropagationSpeed(2).ringRepeatPeriod(1100)
+        // Taps are detected in bindTaps(): the library's hover-based click
+        // misses quick taps on touchscreens.
         .enablePointerInteraction(false);
       bindTaps();
-
       var controls = world.controls();
       controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.5;
+      controls.autoRotateSpeed = 0.35;
       controls.minDistance = 112;   // globe radius is 100
       controls.maxDistance = 560;
       world.pointOfView({ lat: 22, lng: 10, altitude: overviewAltitude() });
-
-      window.addEventListener('resize', function () {
-        world.width(window.innerWidth).height(window.innerHeight);
-      });
-    }
-
-    /** Zoom that fits the whole globe on screen: portrait phones need to sit further back. */
-    function overviewAltitude() {
-      var w = window.innerWidth, h = window.innerHeight;
-      return w >= h ? 2.4 : Math.min(4.2, 2.4 * Math.max(1, (h / w) * 0.78));
+      window.addEventListener('resize', function () { world.width(window.innerWidth).height(window.innerHeight); });
     }
 
     /**
      * A guess is a single-finger tap or left click that barely moves (< 8 px)
-     * and is short (< 600 ms). Drags spin the globe; pinches zoom; neither guesses.
+     * and is short (< 600 ms). Drags rotate the globe; pinches zoom.
      */
     function bindTaps() {
       var active = 0, start = null;
@@ -515,16 +590,12 @@
       el.globe.addEventListener('pointercancel', end);
     }
 
-    function clearMarkers() {
-      world.htmlElementsData([]).arcsData([]).ringsData([]);
-    }
+    function clearMarkers() { world.htmlElementsData([]).arcsData([]).ringsData([]); }
 
     /** Fly to show both points (or just the answer). */
     function frame(a, b) {
-      var lat, lng, alt;
-      if (!b) { lat = a.lat; lng = a.lng; alt = 1.1; }
-      else {
-        // midpoint along the great circle
+      var lat = a.lat, lng = a.lng, alt = 1.1;
+      if (b) {
         var φ1 = toRad(a.lat), λ1 = toRad(a.lng), φ2 = toRad(b.lat), λ2 = toRad(b.lng);
         var Bx = Math.cos(φ2) * Math.cos(λ2 - λ1), By = Math.cos(φ2) * Math.sin(λ2 - λ1);
         lat = Math.atan2(Math.sin(φ1) + Math.sin(φ2), Math.sqrt((Math.cos(φ1) + Bx) * (Math.cos(φ1) + Bx) + By * By)) * 180 / Math.PI;
@@ -532,47 +603,114 @@
         var km = haversineKm(a.lat, a.lng, b.lat, b.lng);
         alt = Math.min(2.6, Math.max(0.35, (km / EARTH_RADIUS_KM) * 1.9 + 0.3));
       }
-      world.pointOfView({ lat: lat, lng: lng, altitude: alt }, 1100);
+      world.pointOfView({ lat: lat, lng: lng, altitude: alt }, 1000);
+    }
+
+    /* ========================================================= start menu */
+    function renderStart() {
+      el.rules.innerHTML = ROUNDS.map(function (r, i) {
+        return '<tr><td>' + (i + 1) + ' · ' + esc(r.name) + '</td><td class="muted">' + esc(r.places) + '</td><td class="num">×' + r.mult + '</td></tr>';
+      }).join('');
+      var day = todayKey(), saved = readDaily();
+      el.dailyTitle.textContent = 'Daily challenge #' + dailyNumber(day);
+      if (saved && saved.done) {
+        el.dailyDesc.textContent = 'Completed. Next challenge in ' + timeToNextDaily() + '.';
+        el.dailySide.textContent = fmt(saved.total) + ' pts';
+      } else if (saved && (saved.results.length || saved.inRound != null)) {
+        var resumeAt = saved.results.length + (saved.inRound != null ? 2 : 1);
+        el.dailyDesc.textContent = 'In progress. Continue from round ' + Math.min(resumeAt, ROUNDS.length) + '.';
+        el.dailySide.textContent = 'Continue';
+      } else {
+        el.dailyDesc.textContent = 'The same five places for everyone today.';
+        el.dailySide.textContent = longDate(day).replace(/ \d{4}$/, '');
+      }
+      el.tbMode.textContent = '';
+      el.tbScore.textContent = '0';
+    }
+
+    function showStart() {
+      state.phase = 'idle';
+      el.results.hidden = true; el.prompt.hidden = true; el.sheet.hidden = true; el.hint.hidden = true;
+      clearMarkers();
+      world.controls().autoRotate = true;
+      renderStart();
+      el.start.hidden = false;
+      el.dailyBtn.focus({ preventScroll: true });
     }
 
     /* =============================================================== flow */
-    function renderLevels() {
-      el.levels.innerHTML = ROUNDS.map(function (r, i) {
-        return '<li><span class="tag" style="background:' + r.color + '">' + esc(r.name) + '</span>' +
-          '<span>Round ' + (i + 1) + '</span><span class="mult">×' + r.mult + '</span></li>';
-      }).join('');
+    function beginDaily() {
+      var day = todayKey();
+      var saved = readDaily() || { date: day, results: [], inRound: null, done: false, total: 0 };
+      state.mode = 'daily';
+      state.day = day;
+      state.targets = dailyTargets(day);
+      el.tbMode.textContent = 'Daily #' + dailyNumber(day);
+      if (saved.done) { state.results = saved.results; state.total = saved.total; showResults(); return; }
+      // A round that was started but never finished (page closed or reloaded) counts as timed out.
+      if (saved.inRound != null && saved.inRound === saved.results.length) {
+        var t = state.targets[saved.inRound];
+        saved.results.push({ name: t.name, where: t.where, mult: ROUNDS[saved.inRound].mult, km: null, base: 0, points: 0, timedOut: true });
+      }
+      state.results = saved.results.slice();
+      state.total = state.results.reduce(function (s, r) { return s + r.points; }, 0);
+      state.round = state.results.length;
+      state.phase = 'idle';
+      saveDaily();
+      launch();
     }
 
-    function startGame() {
-      state.round = 0;
-      state.total = 0;
+    function beginPractice() {
+      state.mode = 'practice';
+      state.day = null;
+      state.targets = ROUNDS.map(function (r) { return randomPick(r.pool); });
       state.results = [];
-      state.targets = ROUNDS.map(function (r) { return pick(r.pool); }); // one random place per tier
+      state.total = 0;
+      state.round = 0;
+      el.tbMode.textContent = 'Practice';
+      launch();
+    }
+
+    function launch() {
       el.start.hidden = true;
       el.results.hidden = true;
-      el.hud.hidden = false;
-      el.hint.hidden = false;
-      el.score.textContent = '0';
+      el.tbScore.textContent = fmt(state.total);
       world.controls().autoRotate = false;
+      if (state.round >= ROUNDS.length) { finishGame(); return; }
       startRound();
     }
 
+    function saveDaily() {
+      if (state.mode !== 'daily') return;
+      writeDaily({
+        date: state.day, results: state.results, total: state.total,
+        inRound: state.phase === 'guessing' ? state.round : null,
+        done: state.results.length >= ROUNDS.length
+      });
+    }
+
+    function renderSteps() {
+      for (var i = 0; i < el.steps.length; i++) {
+        el.steps[i].className = i < state.results.length ? grade(state.results[i])
+          : i === state.round && state.phase === 'guessing' ? 'is-current' : '';
+      }
+    }
+
     function startRound() {
-      var r = ROUNDS[state.round];
-      var place = state.targets[state.round];
+      var r = ROUNDS[state.round], place = state.targets[state.round];
       clearMarkers();
       el.sheet.hidden = true;
       el.hint.hidden = false;
-      el.round.textContent = 'Round ' + (state.round + 1) + ' of ' + ROUNDS.length;
-      el.level.style.setProperty('--level', r.color);
-      el.levelName.textContent = r.name;
-      el.levelMult.textContent = '×' + r.mult + ' multiplier';
-      el.prompt.innerHTML = 'Tap as close as you can to <b>' + esc(place.name) + '</b><span class="where">, ' + esc(place.where) + '</span>';
-      // zoom back out so every round starts from the same overview
+      el.prompt.hidden = false;
+      el.meta.textContent = 'Round ' + (state.round + 1) + ' of ' + ROUNDS.length + ' · ' + r.name + ' · ×' + r.mult;
+      el.place.textContent = place.name;
+      el.region.textContent = place.where;
       var pov = world.pointOfView();
-      world.pointOfView({ lat: pov.lat, lng: pov.lng, altitude: overviewAltitude() }, 700);
+      world.pointOfView({ lat: pov.lat, lng: pov.lng, altitude: overviewAltitude() }, 600);
       el.globe.classList.add('is-guessing');
       state.phase = 'guessing';
+      renderSteps();
+      saveDaily(); // marks this round as started
       state.deadline = performance.now() + ROUND_SECONDS * 1000;
       tick();
     }
@@ -580,95 +718,109 @@
     function tick() {
       cancelAnimationFrame(state.raf);
       var left = Math.max(0, state.deadline - performance.now()) / 1000;
-      el.timerFill.style.transform = 'scaleX(' + (left / ROUND_SECONDS) + ')';
-      el.timerText.textContent = left.toFixed(1) + 's';
-      el.timer.classList.toggle('is-low', left <= 5);
+      el.timebarFill.style.transform = 'scaleX(' + (left / ROUND_SECONDS) + ')';
+      el.clock.textContent = left.toFixed(1);
+      var low = left <= 5;
+      el.clock.classList.toggle('is-low', low);
+      el.timebar.classList.toggle('is-low', low);
       if (state.phase !== 'guessing') return;
-      if (left <= 0) { timeUp(); return; }
+      if (left <= 0) { finishRound(null); return; }
       state.raf = requestAnimationFrame(tick);
     }
 
     function guess(lat, lng) {
-      // wrap longitude in case the click landed on a wrapped coordinate
       lng = ((lng + 540) % 360) - 180;
-      var place = state.targets[state.round];
-      var km = haversineKm(lat, lng, place.lat, place.lng);
-      var base = baseScore(km);
-      finishRound({ guess: { lat: lat, lng: lng }, km: km, base: base, timedOut: false });
+      finishRound({ lat: lat, lng: lng });
     }
 
-    function timeUp() {
-      finishRound({ guess: null, km: null, base: 0, timedOut: true });
-    }
+    function finishRound(g) {
+      var round = ROUNDS[state.round], place = state.targets[state.round];
+      var km = g ? haversineKm(g.lat, g.lng, place.lat, place.lng) : null;
+      var base = g ? baseScore(km) : 0;
+      var points = Math.round(base * round.mult);
 
-    function finishRound(r) {
       state.phase = 'revealed';
       cancelAnimationFrame(state.raf);
+      state.results.push({ name: place.name, where: place.where, mult: round.mult, km: km, base: base, points: points, timedOut: !g });
+      state.total += points;
+      saveDaily();
+      tick();
+      renderSteps();
       el.globe.classList.remove('is-guessing');
       el.hint.hidden = true;
-      var round = ROUNDS[state.round];
-      var place = state.targets[state.round];
-      var points = Math.round(r.base * round.mult);
-      state.total += points;
-      state.results.push({ place: place, round: round, km: r.km, base: r.base, points: points, timedOut: r.timedOut });
-      tick(); // freeze the bar where it stopped
 
-      // markers, line, pulse
-      var markers = [{ lat: place.lat, lng: place.lng, color: '#f2b84b', label: place.name }];
-      if (r.guess) markers.push({ lat: r.guess.lat, lng: r.guess.lng, color: '#e8553f', label: 'You', below: true });
-      world.htmlElementsData(markers);
-      world.ringsData([{ lat: place.lat, lng: place.lng }]);
-      if (r.guess) {
-        world.arcsData([{ startLat: r.guess.lat, startLng: r.guess.lng, endLat: place.lat, endLng: place.lng }]);
-      }
-      frame(place, r.guess);
+      var markers = [{ lat: place.lat, lng: place.lng, color: '#f0b232', label: place.name }];
+      if (g) markers.push({ lat: g.lat, lng: g.lng, color: '#e5534b', label: 'Your guess', below: true });
+      world.htmlElementsData(markers).ringsData([{ lat: place.lat, lng: place.lng }]);
+      if (g) world.arcsData([{ startLat: g.lat, startLng: g.lng, endLat: place.lat, endLng: place.lng }]);
+      frame(place, g);
 
-      // result sheet
-      el.sheetPoints.textContent = '+' + fmt(points);
-      el.sheetPoints.classList.toggle('is-zero', points === 0);
-      el.sheetDetail.innerHTML = r.timedOut
-        ? '<b>Time’s up!</b> ' + esc(place.name) + ' is marked on the globe.'
-        : '<b>' + fmtKm(r.km) + '</b> from ' + esc(place.name) + ' · ' + fmt(r.base) + ' × ' + round.mult;
+      el.sheetPoints.textContent = (points > 0 ? '+' : '') + fmt(points) + ' points';
+      el.sheetSub.textContent = g ? place.name + ', ' + place.where : 'Time’s up. ' + place.name + ' is marked on the globe.';
+      el.stDist.textContent = g ? fmtKm(km) : '—';
+      el.stBase.textContent = fmt(base) + ' / 1,000';
+      el.stMult.textContent = '×' + round.mult;
       el.next.textContent = state.round + 1 >= ROUNDS.length ? 'See results' : 'Next round';
       el.sheet.hidden = false;
-      el.score.textContent = fmt(state.total);
+      el.tbScore.textContent = fmt(state.total);
       el.next.focus({ preventScroll: true });
     }
 
     function nextRound() {
       if (state.phase !== 'revealed') return;
       state.round += 1;
-      if (state.round >= ROUNDS.length) showResults();
+      if (state.round >= ROUNDS.length) finishGame();
       else startRound();
+    }
+
+    function finishGame() {
+      state.phase = 'done';
+      saveDaily();
+      showResults();
     }
 
     function showResults() {
       state.phase = 'done';
-      el.sheet.hidden = true;
-      el.hud.hidden = true;
+      el.prompt.hidden = true; el.sheet.hidden = true; el.hint.hidden = true; el.start.hidden = true;
       clearMarkers();
       world.controls().autoRotate = true;
-      world.pointOfView({ altitude: overviewAltitude() }, 900);
+      world.pointOfView({ altitude: overviewAltitude() }, 800);
+
+      var res = state.results;
+      el.tbMode.textContent = state.mode === 'daily' ? 'Daily #' + dailyNumber(state.day) : 'Practice';
+      el.tbScore.textContent = fmt(state.total);
+      el.resTitle.textContent = state.mode === 'daily'
+        ? 'Daily challenge #' + dailyNumber(state.day) + ' · ' + longDate(state.day)
+        : 'Practice';
       el.total.textContent = fmt(state.total);
-      el.emoji.textContent = state.results.map(emojiFor).join('');
-      el.breakdown.innerHTML = state.results.map(function (r, i) {
-        return '<tr><td>' + (i + 1) + '<span class="sub">×' + r.round.mult + '</span></td>' +
-          '<td class="place">' + esc(r.place.name) + '<span class="sub">' + esc(r.place.where) + '</span></td>' +
-          '<td class="num">' + (r.timedOut ? 'Time’s up' : fmtKm(r.km)) + '</td>' +
-          '<td class="num"><b>' + fmt(r.points) + '</b><span class="sub">' + emojiFor(r) + '</span></td></tr>';
+      el.squares.innerHTML = res.map(function (r) { return '<span class="' + grade(r) + '"></span>'; }).join('');
+      el.squares.setAttribute('aria-label', res.map(function (r, i) { return 'Round ' + (i + 1) + ': ' + fmt(r.points) + ' points'; }).join(', '));
+      var guessed = res.filter(function (r) { return !r.timedOut; });
+      el.rsAvg.textContent = guessed.length ? fmtKm(guessed.reduce(function (s, r) { return s + r.km; }, 0) / guessed.length) : '—';
+      el.rsBest.textContent = guessed.length ? fmtKm(Math.min.apply(null, guessed.map(function (r) { return r.km; }))) : '—';
+      el.rsTimeouts.textContent = String(res.length - guessed.length);
+      el.breakdown.innerHTML = res.map(function (r, i) {
+        return '<tr><td><span class="dot ' + grade(r) + '"></span>' + (i + 1) + '<span class="sub">×' + r.mult + '</span></td>' +
+          '<td>' + esc(r.name) + '<span class="sub">' + esc(r.where) + '</span></td>' +
+          '<td class="num">' + (r.timedOut ? 'Timed out' : fmtKm(r.km)) + '</td>' +
+          '<td class="num"><b>' + fmt(r.points) + '</b></td></tr>';
       }).join('');
-      el.copied.textContent = '';
+      el.practiceAgain.textContent = state.mode === 'daily' ? 'Practice' : 'Play again';
+      el.note.className = 'note';
+      el.note.textContent = state.mode === 'daily' ? 'Next daily challenge in ' + timeToNextDaily() + '.' : '';
       el.results.hidden = false;
       el.share.focus({ preventScroll: true });
     }
 
     /* ============================================================== share */
     function shareText() {
-      return 'Pinpoint · The Daily Dose\n' +
-        state.results.map(emojiFor).join('') + '  ' + fmt(state.total) + ' / ' + fmt(MAX_TOTAL) + '\n' +
-        location.href.split('#')[0];
+      var head = state.mode === 'daily'
+        ? 'Pinpoint Daily #' + dailyNumber(state.day) + ' · ' + longDate(state.day)
+        : 'Pinpoint · Practice';
+      return head + '\n' +
+        state.results.map(function (r) { return EMOJI[grade(r)]; }).join('') + '  ' + fmt(state.total) + ' / ' + fmt(MAX_TOTAL) + '\n' +
+        location.origin + location.pathname;
     }
-
     function copy(text) {
       if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
       return new Promise(function (resolve, reject) {
@@ -681,14 +833,17 @@
     }
 
     /* ============================================================= events */
-    el.startBtn.addEventListener('click', startGame);
+    el.dailyBtn.addEventListener('click', beginDaily);
+    el.practiceBtn.addEventListener('click', beginPractice);
+    el.practiceAgain.addEventListener('click', beginPractice);
     el.next.addEventListener('click', nextRound);
-    el.again.addEventListener('click', startGame);
     el.share.addEventListener('click', function () {
       copy(shareText()).then(function () {
-        el.copied.textContent = 'Copied! Paste it anywhere to share.';
+        el.note.className = 'note is-ok';
+        el.note.textContent = 'Result copied to clipboard.';
       }, function () {
-        el.copied.textContent = 'Couldn’t copy automatically. Here it is: ' + shareText().replace(/\n/g, ' ');
+        el.note.className = 'note';
+        el.note.textContent = shareText().replace(/\n/g, '  ');
       });
     });
     document.addEventListener('keydown', function (e) {
@@ -696,18 +851,17 @@
     });
 
     /* =============================================================== boot */
-    renderLevels();
     try {
       initGlobe();
-      el.startBtn.focus({ preventScroll: true });
+      showStart();
     } catch (err) {
       console.error(err);
       el.start.hidden = true;
       el.noGlobe.hidden = false;
     }
 
-    // Read-only handle for automated browser tests (targets screen positions on the globe).
-    window.__pinpoint = { state: state, world: world, baseScore: baseScore };
+    // Read-only handle for automated browser tests.
+    window.__pinpoint = { state: state, world: world, dailyTargets: dailyTargets };
   })();
   </script>
 </body>

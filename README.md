@@ -63,7 +63,17 @@ There are five rounds, with 25 seconds each to tap a named place on a blank 3D g
 | 5 | Very hard: obscure towns and islands | ×3 |
 
 - **Scoring:** the base score is 0–1,000, from the Haversine distance. A guess within 10 km scores 1,000, decaying to about 520 at 1,000 km. That base is multiplied by the round's multiplier, so a perfect game is 10,000. Running out of time scores 0.
-- **Results:** a breakdown per round and a **Share results** button that copies an emoji summary (🟢🟡🔴, ⏱️ for a timeout).
+- **Two modes:**
+  - **Daily challenge:** everyone gets the same five places on a given (UTC) day. The date seeds a small random-number generator that picks one place per pool, so no server is needed. There's one attempt per day, saved in the browser. If the page is reloaded mid-round, that round counts as timed out, so a hard round can't be skipped by reloading. The day count starts from Daily #1 on 7 November 2026 (`DAILY_EPOCH`).
+  - **Practice:** random places, unlimited.
+- **Results:** total, average and closest distance, time-outs, and a per-round breakdown. **Share result** copies something like:
+
+  ```
+  Pinpoint Daily #1 · 7 November 2026
+  🟩🟨🟩🟩🟩  8,676 / 10,000
+  ```
+
+  🟩 is within about 200 km, 🟨 is mid-range, 🟥 is far and ⬛ is timed out.
 - **Adding places:** the five pools (`poolRound1` to `poolRound5`) are at the top of the script in `pinpoint.html`, with a comment on loading thousands of places from JSON for production.
 - **Controls:** drag to spin, scroll or pinch to zoom, and tap or click to guess.
 
