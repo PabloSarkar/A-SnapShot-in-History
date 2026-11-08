@@ -314,6 +314,7 @@
       <div class="actions">
         <button type="button" class="btn btn-primary" id="share-btn">Share result</button>
         <button type="button" class="btn btn-secondary" id="practice-again-btn">Practice</button>
+        <a class="btn btn-secondary" id="lb-link" href="./leaderboard.html?game=pinpoint" hidden>Leaderboard</a>
         <a class="btn btn-secondary" href="./">All games</a>
       </div>
       <p class="note" id="res-note" aria-live="polite"></p>
@@ -515,7 +516,7 @@
       dailySide: $('daily-side'), practiceBtn: $('practice-btn'), rules: $('rules'),
       results: $('results'), resTitle: $('res-title'), total: $('total'), squares: $('squares'),
       rsAvg: $('rs-avg'), rsBest: $('rs-best'), rsTimeouts: $('rs-timeouts'), breakdown: $('breakdown'),
-      share: $('share-btn'), practiceAgain: $('practice-again-btn'), note: $('res-note'), noGlobe: $('no-globe')
+      share: $('share-btn'), practiceAgain: $('practice-again-btn'), lbLink: $('lb-link'), note: $('res-note'), noGlobe: $('no-globe')
     };
 
     /* ============================================================== state */
@@ -655,6 +656,7 @@
       var saved = readDaily(day) || { date: day, results: [], inRound: null, done: false, total: 0 };
       state.mode = 'daily';
       state.day = day;
+      state.finishedAt = null;
       state.targets = dailyTargets(day);
       el.tbMode.textContent = 'Daily #' + dailyNumber(day);
       if (saved.done) { state.results = saved.results; state.total = saved.total; showResults(); return; }
@@ -693,10 +695,12 @@
 
     function saveDaily() {
       if (state.mode !== 'daily') return;
+      var done = state.results.length >= ROUNDS.length;
+      if (done && !state.finishedAt) state.finishedAt = Date.now();   // leaderboards: same-day plays only
       writeDaily({
         date: state.day, results: state.results, total: state.total,
         inRound: state.phase === 'guessing' ? state.round : null,
-        done: state.results.length >= ROUNDS.length
+        done: done, finishedAt: done ? state.finishedAt : null
       });
     }
 
@@ -818,6 +822,8 @@
           '<td class="num"><b>' + fmt(r.points) + '</b></td></tr>';
       }).join('');
       el.practiceAgain.textContent = state.mode === 'daily' ? 'Practice' : 'Play again';
+      el.lbLink.hidden = state.mode !== 'daily';
+      el.lbLink.href = './leaderboard.html?game=pinpoint&day=' + state.day;
       el.note.className = 'note';
       el.note.textContent = state.mode !== 'daily' ? '' : ARCHIVE_DAY
         ? 'Missed other days? Open the calendar on the home page.'

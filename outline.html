@@ -236,6 +236,7 @@
       <div class="actions">
         <button type="button" class="btn btn-primary" id="share-btn">Share result</button>
         <button type="button" class="btn btn-secondary" id="practice-btn-2">Practice</button>
+        <a class="btn btn-secondary" id="lb-link" href="./leaderboard.html?game=outline" hidden>Leaderboard</a>
         <a class="btn btn-secondary" href="./">All games</a>
       </div>
       <p class="note" id="res-note"></p>
@@ -357,7 +358,7 @@
       guesses: $('guesses'), result: $('result'), resEyebrow: $('res-eyebrow'), resTitle: $('res-title'), resSub: $('res-sub'),
       share: $('share-btn'), note: $('res-note'),
       dailyBtn: $('daily-btn'), dailyTitle: $('daily-title'), dailyDesc: $('daily-desc'), dailySide: $('daily-side'),
-      practiceBtn: $('practice-btn'), practiceBtn2: $('practice-btn-2')
+      practiceBtn: $('practice-btn'), practiceBtn2: $('practice-btn-2'), lbLink: $('lb-link')
     };
 
     /* ============================================================== daily */
@@ -372,8 +373,10 @@
     function readDaily(day) { return Archive.read('outline', day); }
     function saveDaily() {
       if (state.mode !== 'daily') return;
+      if (state.done && !state.finishedAt) state.finishedAt = Date.now();   // leaderboards: same-day plays only
       Archive.write('outline', state.day, {
         date: state.day, guesses: state.guesses.map(function (g) { return g.code; }), done: state.done, won: state.won,
+        finishedAt: state.done ? state.finishedAt : null,
         summary: (state.won ? state.guesses.length : 'X') + '/' + MAX_GUESSES   // shown in the hub's archive calendar
       });
     }
@@ -410,6 +413,7 @@
       state.guesses = [];
       state.done = false;
       state.won = false;
+      state.finishedAt = null;
       if (mode === 'daily') {
         state.day = dailyDay();
         state.answer = dailyAnswer(state.day);
@@ -495,6 +499,8 @@
           ? 'Solved in ' + n + (n === 1 ? ' guess.' : ' guesses.')
           : 'Not this time. The answer was ' + state.answer.name + '.';
         el.practiceBtn2.textContent = state.mode === 'daily' ? 'Practice' : 'Play again';
+        el.lbLink.hidden = state.mode !== 'daily';
+        el.lbLink.href = './leaderboard.html?game=outline&day=' + state.day;
         el.note.className = 'note';
         el.note.textContent = state.mode !== 'daily' ? '' : ARCHIVE_DAY
           ? 'Missed other days? Open the calendar on the home page.'

@@ -109,7 +109,7 @@
     howto: $('howto'), howtoOpen: $('howto-open'), howtoClose: $('howto-close'),
     toMenu: $('to-menu'), modeLabel: $('mode-label'),
     endScreen: $('end-screen'), endTotal: $('end-total'), endMax: $('end-max'),
-    endVerdict: $('end-verdict'), endRows: $('end-rows'), again: $('again')
+    endVerdict: $('end-verdict'), endRows: $('end-rows'), again: $('again'), endLb: $('end-lb')
   };
 
   // =================================================================== MAP
@@ -548,7 +548,7 @@
   function dailyDay() { return ARCHIVE_DAY || todayKey(); }
   function readDailyResult(day) { return Archive ? Archive.read('snapshot', day) : null; }
   function writeDailyResult(day, total) {
-    if (Archive) Archive.write('snapshot', day, { date: day, done: true, total: total, summary: fmt(total) + ' pts' });
+    if (Archive) Archive.write('snapshot', day, { date: day, done: true, total: total, summary: fmt(total) + ' pts', finishedAt: Date.now() });
   }
 
   // ---- saved progress (per browser; the game works without it) -----------
@@ -899,6 +899,8 @@
     }
     if (dailyNote) el.endVerdict.textContent += dailyNote;
     el.again.textContent = state.mode === 'daily' ? 'Play a random match' : 'Play again';
+    el.endLb.hidden = state.mode !== 'daily';
+    el.endLb.href = './leaderboard.html?game=snapshot&day=' + dailyDay();
 
     el.endScreen.hidden = false;
     el.again.focus({ preventScroll: true });

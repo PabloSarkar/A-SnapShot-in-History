@@ -12,6 +12,8 @@ Static HTML + vanilla JS + Tailwind (CDN) + Leaflet/OpenStreetMap. No build step
 - **`/snapshot`** (`snapshot.html`) is the photo game. Its menu has a "‹ All games" link back to the hub.
 
 - **`/pinpoint`** (`pinpoint.html`) is a quick-fire geography game on a 3D globe (see below).
+- **`/outline`** (`outline.html`) is the country-silhouette game (see below).
+- **`/leaderboard`** (`leaderboard.html`) holds the daily and all-time leaderboards (see below). It's linked from the hub header and from each game's daily results.
 
 Timeline and Older or Newer show on the hub as "Coming soon" cards. To add a game, copy a `.game-card` block in `index.html`, point its `href` at the game's page and give it a colour in `css/hub.css`.
 
@@ -43,6 +45,31 @@ Once a player is signed in, their daily challenge results (the archive calendar,
 - **Signing out** clears the results from that browser, so a shared computer doesn't show the previous player's calendar.
 
 Stored in the `daily_results` table (one row per user, game and day), via `GET /api/dailies` and `PUT /api/dailies`. The table is created automatically. Client side: `js/daily-archive.js`.
+
+### Leaderboards
+
+`leaderboard.html` has two tabs. Both need accounts switched on; without them the page says so.
+
+- **Daily:** one board per game per day, with arrows to step back through past days. Pinpoint and Snapshot rank by score, and Outline ranks by fewest guesses (a loss ranks last). Ties go to whoever finished first.
+- **All-time:** choose a game, then a stat:
+
+| Game | Stats |
+| --- | --- |
+| Snapshot, Pinpoint | Total points · Average score (3+ dailies) · Best score · Games played · Current streak · Longest streak |
+| Outline | Wins · Win rate (5+ dailies) · Avg guesses in a win (3+ wins, lower is better) · Games played · Current streak · Longest streak |
+| All games | Dailies played · Current streak · Longest streak (days with at least one daily) |
+
+**What counts.** Only a **daily challenge finished on its day** counts. Practice games and archive replays never do. "On its day" means the result was finished, and reached the server, while that date was still today somewhere on Earth (UTC+14 to UTC−12). Results played as a guest that day are added when the player signs in. Players see the top 50, plus their own rank if they're further down. **Usernames on leaderboards are public.**
+
+**Cheating.** The server re-checks every result before ranking it; anything that fails is still kept as the player's own result but never ranked:
+
+- **Outline:** the last guess must really be that day's answer, and there can be no repeated or unknown countries.
+- **Pinpoint:** the five places must be that day's places, with the right multipliers, and the points must add up.
+- **Snapshot:** only the range (0–50,000) is checked.
+
+Like any browser game it can't prove a player didn't look the answer up or script their guesses, so treat the boards as friendly competition.
+
+Stored in the `leaderboard_entries` table (one row per user, game and day, created automatically and backfilled from existing synced results). Read via `GET /api/leaderboard?type=daily&game=…&day=YYYY-MM-DD` or `?type=alltime&game=…|all&metric=…`. Client: `js/leaderboard.js`.
 
 ### Security
 
@@ -225,6 +252,7 @@ node scripts/curate-photos.js             # apply it
 ```
 index.html        The Daily Dose hub: one card per game, Sign in top right
 signin.html       sign in / create account (username + password)
+leaderboard.html  daily and all-time leaderboards (js/leaderboard.js)
 outline.html      Outline country-silhouette game
 js/outline-countries.js  195 countries for Outline (generated)
 assets/outlines/  one SVG silhouette per country (generated)
