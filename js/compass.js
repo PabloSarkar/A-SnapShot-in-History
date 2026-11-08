@@ -293,14 +293,26 @@
       active = (active + (e.key === 'ArrowDown' ? 1 : -1) + matches.length) % matches.length;
       syncActive();
       e.preventDefault();
+    } else if (e.key === 'Enter' && !el.list.hidden && matches[active] && !exact(el.input.value)) {
+      // Enter on a highlighted suggestion fills it in; Enter again guesses it.
+      e.preventDefault();
+      choose(matches[active].c);
     } else if (e.key === 'Escape') {
       closeList();
     }
   });
+  /** Put a suggestion in the box without guessing it yet. */
+  function choose(c) {
+    el.input.value = c.name;
+    el.error.textContent = '';
+    closeList();
+    el.input.focus();
+    el.input.setSelectionRange(c.name.length, c.name.length);
+  }
   el.list.addEventListener('mousedown', function (e) { e.preventDefault(); });
   el.list.addEventListener('click', function (e) {
     var li = e.target.closest('[data-code]');
-    if (li) submit(byCode[li.dataset.code]);
+    if (li) choose(byCode[li.dataset.code]);
   });
   document.addEventListener('click', function (e) { if (!el.form.contains(e.target)) closeList(); });
   el.form.addEventListener('submit', function (e) {
