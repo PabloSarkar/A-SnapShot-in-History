@@ -23,7 +23,7 @@
   var selected = today;
   var view = today.slice(0, 7);        // "YYYY-MM" being shown
 
-  // Pill shows today's (UTC) date: the day the daily challenges belong to.
+  // Pill shows the player's local date: the day their daily challenges belong to.
   el.day.textContent = String(+today.slice(8, 10));
   el.month.textContent = new Date(today + 'T12:00:00Z').toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
   el.pill.setAttribute('aria-label', 'Today, ' + A.longDate(today) + '. Open the daily challenge archive');

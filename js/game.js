@@ -511,7 +511,7 @@
 
   /* ================================================================ MODES
    * classic  five random photos (unplayed ones first)
-   * daily    the same five for everyone on a given UTC day: a shard and an
+   * daily    the same five for everyone on a given (local) date: a shard and an
    *          order chosen by hashing the date, so no server is needed
    * era      only photos from a chosen period
    * ---------------------------------------------------------------------- */
@@ -535,7 +535,10 @@
   }
 
   function todayKey() {
-    return new Date().toISOString().slice(0, 10); // UTC date, same for everyone
+    // The player's local date (shared with the other games via daily-archive.js).
+    if (window.DailyArchive) return window.DailyArchive.today();
+    var d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1) + '-' + (d.getDate() < 10 ? '0' : '') + d.getDate();
   }
 
   // Daily archive (js/daily-archive.js): snapshot.html?date=YYYY-MM-DD plays a past day.

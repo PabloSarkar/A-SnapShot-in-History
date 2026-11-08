@@ -20,8 +20,8 @@
   <!-- 2,500+ places for the five rounds, built by scripts/build-pinpoint-places.js -->
   <script src="./js/pinpoint-places.js?v=20261107e"></script>
   <!-- Daily archive: per-day results + ?date=YYYY-MM-DD -->
-  <script src="./js/account.js?v=20261107j"></script>
-  <script src="./js/daily-archive.js?v=20261107j"></script>
+  <script src="./js/account.js?v=20261108a"></script>
+  <script src="./js/daily-archive.js?v=20261108a"></script>
 
   <style>
     /* ===================================================================
@@ -431,7 +431,8 @@
 
     /* =====================================================================
      * DAILY CHALLENGE
-     * Everyone gets the same five places on a given UTC day: the date seeds
+     * Everyone gets the same five places on a given date (each player's local
+     * date, so a new challenge unlocks at their midnight): the date seeds
      * a small PRNG that picks one place per pool. One attempt per day, kept
      * in localStorage. If the page is reloaded mid-round, that round counts
      * as timed out (so a hard round can't be skipped by reloading).
@@ -468,13 +469,7 @@
       d.summary = fmt(d.total) + ' pts';   // shown in the hub's archive calendar
       Archive.write('pinpoint', d.date, d);
     }
-    function timeToNextDaily() {
-      var now = new Date();
-      var next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
-      var mins = Math.max(0, Math.ceil((next - now.getTime()) / 60000));
-      var h = Math.floor(mins / 60), m = mins % 60;
-      return (h ? h + 'h ' : '') + m + 'm';
-    }
+    function timeToNextDaily() { return Archive.timeToNext(); }   // until the player's local midnight
     function longDate(day) {
       return new Date(day + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
     }

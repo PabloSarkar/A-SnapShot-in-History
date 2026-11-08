@@ -8,7 +8,7 @@
  *   POST /api/logout     -> { ok: true }
  *   GET  /api/progress   -> { data }   (scores, streaks; the game's own format)
  *   PUT  /api/progress   { data } -> { ok: true }
- *   GET  /api/dailies    -> { dailies: { game: { "YYYY-MM-DD": record } } }
+ *   GET  /api/dailies    -> { dailies: { game: { "YYYY-MM-DD": record } } }   (player's local dates)
  *   PUT  /api/dailies    { game, day, record } -> { record }   (the record now stored)
  *
  * Daily results (one row per user, game and day) follow the same rules as
@@ -305,7 +305,8 @@ async function putDaily(db, request, user) {
   try { body = JSON.parse(text); } catch (e) { return fail(400, 'bad_json', 'Invalid JSON.'); }
   const game = body && body.game, day = body && body.day, record = body && body.record;
   if (!DAILY_GAMES.has(game)) return fail(400, 'bad_game', 'Unknown game.');
-  // Days are UTC; allow one day of slack for clocks running slightly ahead.
+  // Days are the player's local date, which can be up to 14 hours ahead of UTC
+  // (e.g. Kiribati), so allow up to tomorrow in UTC.
   if (typeof day !== 'string' || !DAY_RE.test(day) || day < DAILY_LAUNCH || day > utcDay(1)) return fail(400, 'bad_day', 'Invalid day.');
   if (!record || typeof record !== 'object' || Array.isArray(record)) return fail(400, 'bad_record', 'Expected a record object.');
 

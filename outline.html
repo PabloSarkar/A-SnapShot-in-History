@@ -15,8 +15,8 @@
   <!-- 195 countries: name, latlng, cca2, continent. Built by scripts/build-outline-data.js -->
   <script src="./js/outline-countries.js?v=20261107f"></script>
   <!-- Daily archive: per-day results + ?date=YYYY-MM-DD -->
-  <script src="./js/account.js?v=20261107j"></script>
-  <script src="./js/daily-archive.js?v=20261107j"></script>
+  <script src="./js/account.js?v=20261108a"></script>
+  <script src="./js/daily-archive.js?v=20261108a"></script>
 
   <style>
     /* ===================================================================
@@ -315,11 +315,7 @@
     function dailyDay() { return ARCHIVE_DAY || todayKey(); }
     function dailyNumber(day) { return Math.round((Date.parse(day) - Date.parse(DAILY_EPOCH)) / 864e5) + 1; }
     function longDate(day) { return new Date(day + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }); }
-    function timeToNextDaily() {
-      var now = new Date();
-      var mins = Math.max(0, Math.ceil((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime()) / 60000));
-      return (Math.floor(mins / 60) ? Math.floor(mins / 60) + 'h ' : '') + (mins % 60) + 'm';
-    }
+    function timeToNextDaily() { return Archive.timeToNext(); }   // until the player's local midnight
     function hashStr(s) { var h = 0x811c9dc5; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
     function mulberry32(a) {
       return function () {

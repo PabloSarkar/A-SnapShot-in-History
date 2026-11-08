@@ -65,7 +65,7 @@ The date at the top right of the hub opens a calendar of every daily challenge s
 - **Dots:** each day shows one dot per daily game (Snapshot, Pinpoint, Outline): filled means played, half means in progress, empty means not played.
 - **Choosing a day** lists the three games with your result and a **Play**, **Continue** or **View result** button.
 - **Opening a past day:** any game opened with `?date=YYYY-MM-DD` (e.g. `/outline?date=2026-11-20`) plays that day's challenge. Dates before launch, in the future or invalid fall back to today. Each game's start screen links back to the calendar ("Missed a day?"), and `/#archive` opens it directly.
-- **Day boundary:** days are UTC dates, the same for everyone. Results are saved in the browser per game and per day by `js/daily-archive.js`, in `localStorage` key `dailies.<game>`. Results saved before the archive existed are carried over automatically.
+- **Day boundary:** like Wordle, a day is the **player's own local date**, so new challenges unlock at each player's midnight. Everyone on the same date gets the same challenges (a player in Tokyo reaches the next day's puzzles before one in Houston). Results are saved in the browser per game and per day by `js/daily-archive.js`, in `localStorage` key `dailies.<game>`. Results saved before the archive existed are carried over automatically.
 - **Adding a daily game:** add it to `GAMES` in `js/daily-archive.js`, read `?date=` with `DailyArchive.requestedDay()`, and save results with `DailyArchive.write(game, day, { done, summary, ... })`.
 
 ## Pinpoint
@@ -85,7 +85,7 @@ There are five rounds, with 25 seconds each to tap a named place on a blank 3D g
 
 - **Scoring:** the base score is 0–1,000, from the Haversine distance. A guess within 10 km scores 1,000, decaying to about 520 at 1,000 km. That base is multiplied by the round's multiplier, so a perfect game is 10,000. Running out of time scores 0.
 - **Two modes:**
-  - **Daily challenge:** everyone gets the same five places on a given (UTC) day. The date seeds a small random-number generator that picks one place per pool, so no server is needed. There's one attempt per day, saved in the browser. If the page is reloaded mid-round, that round counts as timed out, so a hard round can't be skipped by reloading. The day count starts from Daily #1 on 7 November 2026 (`DAILY_EPOCH`).
+  - **Daily challenge:** everyone gets the same five places on a given date (each player's local date). The date seeds a small random-number generator that picks one place per pool, so no server is needed. There's one attempt per day, saved in the browser. If the page is reloaded mid-round, that round counts as timed out, so a hard round can't be skipped by reloading. The day count starts from Daily #1 on 7 November 2026 (`DAILY_EPOCH`).
   - **Practice:** random places, unlimited.
 - **Results:** total, average and closest distance, time-outs, and a per-round breakdown. **Share result** copies something like:
 
@@ -115,7 +115,7 @@ There are five rounds, with 25 seconds each to tap a named place on a blank 3D g
 
 ## Outline
 
-Outline is at **`/outline`** (`outline.html`). You name the country from its silhouette in six guesses. Each wrong guess shows the distance between the two countries' centre points (Haversine), an arrow pointing from your guess towards the answer, and how close you are as a percentage. The continent is revealed after three guesses. Like Pinpoint, it has a **Daily challenge** (the same country for everyone each UTC day, one attempt, resumable) and unlimited **Practice**.
+Outline is at **`/outline`** (`outline.html`). You name the country from its silhouette in six guesses. Each wrong guess shows the distance between the two countries' centre points (Haversine), an arrow pointing from your guess towards the answer, and how close you are as a percentage. The continent is revealed after three guesses. Like Pinpoint, it has a **Daily challenge** (the same country for everyone on a given date, unlocking at local midnight; one attempt, resumable) and unlimited **Practice**.
 
 - **Country data:** `js/outline-countries.js`, 195 countries (the 193 UN members plus Vatican City and Palestine), with `name.common`, `latlng`, `cca2` and the continent.
   - It comes from [mledoze/countries](https://github.com/mledoze/countries) (ODbL), the dataset REST Countries is built on.
@@ -137,7 +137,7 @@ Outline is at **`/outline`** (`outline.html`). You name the country from its sil
 The main menu offers three modes:
 
 - **Play:** five random photographs from the whole catalogue. Photos you've already seen this session are avoided.
-- **Daily:** the same five photos for everyone on a given day (UTC). They're picked by hashing the date, so no server is needed. Your first score each day is saved in the browser and shown on the menu; replays don't overwrite it.
+- **Daily:** the same five photos for everyone on a given date (the player's local date). They're picked by hashing the date, so no server is needed. Your first score each day is saved in the browser and shown on the menu; replays don't overwrite it.
 - **Eras:** pick a period (1900–1919, 1920–1939, …). Eras with fewer than five photos in the catalogue are disabled until a build adds more.
 
 The menu also shows matches played and your best score, both stored in the browser's localStorage.

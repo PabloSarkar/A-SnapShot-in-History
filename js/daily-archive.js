@@ -1,7 +1,10 @@
 /* =============================================================================
  * The Daily Dose — daily challenge archive (shared by the hub and every game)
  * -----------------------------------------------------------------------------
- * - Days are UTC dates ("YYYY-MM-DD"), the same for every player.
+ * - Days follow each player's own calendar date ("YYYY-MM-DD"), like Wordle:
+ *   a new challenge unlocks at the player's local midnight, and everyone on
+ *   the same date gets the same challenge. (Date keys are only ever *formatted*
+ *   in UTC below, which keeps "2026-11-08" from shifting a day.)
  * - The archive runs from LAUNCH to today. Any game opened with
  *   ?date=YYYY-MM-DD plays that day's daily challenge instead of today's.
  * - Results are kept per game and per day in localStorage:
@@ -34,7 +37,20 @@
     { id: 'outline', name: 'Outline', url: './outline.html' }
   ];
 
-  function today() { return new Date().toISOString().slice(0, 10); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  /** The player's local calendar date. */
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  /** Minutes until the player's next local midnight, as "5h 12m". */
+  function timeToNext() {
+    var now = new Date();
+    var next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    var mins = Math.max(0, Math.ceil((next - now) / 60000));
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return (h ? h + 'h ' : '') + m + 'm';
+  }
 
   function isValidDay(day) {
     if (typeof day !== 'string' || !DAY_RE.test(day)) return false;
@@ -214,6 +230,7 @@
     LAUNCH: LAUNCH,
     GAMES: GAMES,
     today: today,
+    timeToNext: timeToNext,
     isValidDay: isValidDay,
     requestedDay: requestedDay,
     shiftDay: shiftDay,
