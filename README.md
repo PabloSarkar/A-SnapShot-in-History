@@ -17,6 +17,7 @@ Static HTML + vanilla JS + Tailwind (CDN) + Leaflet/OpenStreetMap. No build step
 
 - **`/timeline`** (`timeline.html`) puts five photographs in the order they were taken (see below).
 - **`/oldernewer`** (`oldernewer.html`) is a streak game: is the next photograph older or newer? (see below).
+- **`/compass`** (`compass.html`) finds a secret country from distance, direction, region and population clues (see below).
 
 To add a game, copy a `.game-card` block in `index.html`, point its `href` at the game's page and give it a colour in `css/hub.css`.
 
@@ -59,7 +60,7 @@ Stored in the `daily_results` table (one row per user, game and day), via `GET /
 | Game | Stats |
 | --- | --- |
 | Snapshot, Pinpoint, Timeline | Total points · Average score (3+ dailies) · Best score · Games played · Current streak · Longest streak |
-| Outline | Wins · Win rate (5+ dailies) · Avg guesses in a win (3+ wins, lower is better) · Games played · Current streak · Longest streak |
+| Outline, Compass | Wins · Win rate (5+ dailies) · Avg guesses in a win (3+ wins, lower is better) · Games played · Current streak · Longest streak |
 | Older or Newer | Best run · Average run (3+ dailies) · Total correct · Games played · Current streak · Longest streak |
 | All games | Dailies played · Current streak · Longest streak (days with at least one daily) |
 
@@ -69,6 +70,7 @@ Stored in the `daily_results` table (one row per user, game and day), via `GET /
 
 - **Outline:** the last guess must really be that day's answer, and there can be no repeated or unknown countries.
 - **Pinpoint:** the five places must be that day's places, with the right multipliers, and the points must add up.
+- **Compass:** like Outline: real, unique countries, the last guess must be that day's answer, and a loss must use all eight guesses.
 - **Timeline:** the tries are replayed against that day's five photos; locked photos must stay put and the score is recomputed.
 - **Older or Newer:** the calls are replayed against that day's run; nothing may follow a miss, and the run must end with a miss or the last photo.
 - **Snapshot:** only the range (0–50,000) is checked.
@@ -164,6 +166,22 @@ Outline is at **`/outline`** (`outline.html`). You name the country from its sil
   npm install --no-save world-countries@5 world-atlas@2.0.2 topojson-client@3.1.0 d3-geo@3.1.1
   node scripts/build-outline-data.js
   ```
+
+## Compass
+
+`compass.html` + `js/compass.js` + `css/compass.css`. Find the secret country in eight guesses. Each guess fills a row of clues:
+
+| Clue | How it works |
+| --- | --- |
+| Distance | Haversine (great-circle) distance between the two countries' central points, in km or miles (the **km/mi** button; remembered per browser). The bar under it fills as you get closer. |
+| Direction | The compass heading from your guess to the secret country as it reads on a map (a rhumb line, the shorter way round), shown as an arrow and N/NE/E…. |
+| Region | Green: same subregion (e.g. Western Europe). Yellow: same continent. Red: neither. |
+| Population | Green within 10%. Otherwise ⬆ (the secret country has more people) or ⬇ (fewer). |
+
+- **Countries:** all 195 (193 UN members plus Vatican City and Palestine), every one a possible answer. The autocomplete also knows other names (USA, UK, Burma, Ivory Coast, Czech Republic…), and won't accept unknown or repeated countries.
+- **Daily:** one country per day from a fixed shuffle of all 195, so none repeats for 195 days. Like every daily on the site it changes at the **player's local midnight**, not UTC, so the archive calendar and leaderboards line up across games. Practice picks a random country.
+- **End screen:** the answer (flag, capital, region, population), a spoiler-free emoji grid to share (region, population and direction per guess), and statistics: games played, win %, current and max streak, guess distribution. Statistics come from the saved daily results, so they follow a signed-in player across devices. Archive days count once played.
+- **Data:** `js/compass-countries.js`, built by `scripts/build-compass-data.js` from mledoze/countries (ODbL; names, capitals, regions, coordinates) and World Bank population (CC BY 4.0). Flags are emoji, drawn with the Twemoji Country Flags font (`assets/fonts/`, CC BY 4.0) so they also show on Windows, which has no flag emoji.
 
 ## Timeline and Older or Newer
 
@@ -273,6 +291,10 @@ leaderboard.html  daily and all-time leaderboards (js/leaderboard.js)
 timeline.html     Timeline photo-ordering game (js/timeline.js)
 oldernewer.html   Older or Newer streak game (js/oldernewer.js)
 js/photo-deck.js  shared photo dealing for Timeline and Older or Newer
+compass.html      Compass country-clue game (js/compass.js, css/compass.css)
+js/compass-countries.js  195 countries for Compass (generated)
+scripts/build-compass-data.js  builds them
+assets/fonts/     Twemoji Country Flags font (flag emoji on Windows)
 css/photo-games.css  their darkroom styles
 outline.html      Outline country-silhouette game
 js/outline-countries.js  195 countries for Outline (generated)

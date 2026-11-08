@@ -140,6 +140,7 @@ a.game-card:hover .game-art svg { transform: rotate(-1.5deg) scale(1.02); }
 .card-outline { background: #7a3346; }
 .card-timeline { background: #5a3d8a; }
 .card-oldernewer { background: #c8553d; }
+.card-compass { background: #9a5b22; }
 
 /* ------------------------------------------------------------------ footer */
 .hub-foot {

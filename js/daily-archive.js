@@ -36,7 +36,8 @@
     { id: 'pinpoint', name: 'Pinpoint', url: './pinpoint.html' },
     { id: 'outline', name: 'Outline', url: './outline.html' },
     { id: 'timeline', name: 'Timeline', url: './timeline.html' },
-    { id: 'oldernewer', name: 'Older or Newer', url: './oldernewer.html' }
+    { id: 'oldernewer', name: 'Older or Newer', url: './oldernewer.html' },
+    { id: 'compass', name: 'Compass', url: './compass.html' }
   ];
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }

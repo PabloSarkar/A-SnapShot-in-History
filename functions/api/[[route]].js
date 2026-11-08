@@ -11,7 +11,7 @@
  *   GET  /api/dailies    -> { dailies: { game: { "YYYY-MM-DD": record } } }   (player's local dates)
  *   PUT  /api/dailies    { game, day, record } -> { record }   (the record now stored)
  *   GET  /api/leaderboard?type=daily&game=pinpoint&day=YYYY-MM-DD
- *   GET  /api/leaderboard?type=alltime&game=pinpoint|outline|snapshot|all&metric=…
+ *   GET  /api/leaderboard?type=alltime&game=<game>|all&metric=…
  *        -> { rows: [{ rank, username, value, … , you }], you: {…} | null, count }
  *        Public (no sign-in needed); `you` is filled in when signed in.
  *
@@ -43,7 +43,9 @@ const PBKDF2_ITERATIONS = 100000;
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 const MAX_PROGRESS_BYTES = 20000;
 const MAX_DAILY_BYTES = 8000;
-const DAILY_GAMES = new Set(['snapshot', 'pinpoint', 'outline', 'timeline', 'oldernewer']);
+const DAILY_GAMES = new Set(['snapshot', 'pinpoint', 'outline', 'timeline', 'oldernewer', 'compass']);
+// Games ranked like Wordle (fewest guesses), and how many guesses they allow.
+const GUESS_GAMES = { outline: 6, compass: 8 };
 const DAILY_LAUNCH = '2026-11-07';
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -405,6 +407,15 @@ async function outlineAnswer(env, request, day) {
   const n = dailyNumber(day);
   return { answer: order[((n - 1) % order.length + order.length) % order.length], codes: new Set(rows.map((r) => r[1])) };
 }
+async function compassAnswer(env, request, day) {
+  const rows = await loadAsset(env, request, '/js/compass-countries.js', 'COMPASS_COUNTRIES');
+  if (!Array.isArray(rows)) return null;
+  const order = rows.map((r) => r[1]).sort();
+  const rng = mulberry32(hashStr('compass-order-v1'));
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  const n = dailyNumber(day);
+  return { answer: order[((n - 1) % order.length + order.length) % order.length], codes: new Set(rows.map((r) => r[1])) };
+}
 async function pinpointTargets(env, request, day) {
   const data = await loadAsset(env, request, '/js/pinpoint-places.js', 'PINPOINT_PLACES');
   if (!data || !Array.isArray(data.rounds) || data.rounds.length !== 5) return null;
@@ -472,14 +483,16 @@ async function deriveEntry(env, request, game, day, rec) {
     const t = rec.total;
     return Number.isInteger(t) && t >= 0 && t <= 50000 ? { score: t, guesses: null, won: null } : null;
   }
-  if (game === 'outline') {
+  if (GUESS_GAMES[game]) {
+    // Outline and Compass: real, unique countries; a win ends on the answer, a loss uses every guess.
+    const max = GUESS_GAMES[game];
     const g = rec.guesses;
-    if (!Array.isArray(g) || g.length < 1 || g.length > 6 || new Set(g).size !== g.length) return null;
-    const truth = await outlineAnswer(env, request, day);
+    if (!Array.isArray(g) || g.length < 1 || g.length > max || new Set(g).size !== g.length) return null;
+    const truth = game === 'outline' ? await outlineAnswer(env, request, day) : await compassAnswer(env, request, day);
     if (!truth || !g.every((c) => truth.codes.has(c))) return null;
     const won = g[g.length - 1] === truth.answer && g.indexOf(truth.answer) === g.length - 1;
-    if (!!rec.won !== won || (!won && g.length !== 6)) return null;
-    return { score: won ? 7 - g.length : 0, guesses: g.length, won: won ? 1 : 0 };
+    if (!!rec.won !== won || (!won && g.length !== max)) return null;
+    return { score: won ? max + 1 - g.length : 0, guesses: g.length, won: won ? 1 : 0 };
   }
   if (game === 'timeline') {
     // Replay the tries: a photo locks the first time it's in its right place
@@ -563,12 +576,12 @@ const METRICS = {
   total:      { sql: 'SUM(score)', dir: 'DESC', games: ['pinpoint', 'snapshot', 'timeline', 'oldernewer'] },
   average:    { sql: 'ROUND(AVG(score), 1)', dir: 'DESC', min: 3, games: ['pinpoint', 'snapshot', 'timeline', 'oldernewer'] },
   best:       { sql: 'MAX(score)', dir: 'DESC', games: ['pinpoint', 'snapshot', 'timeline', 'oldernewer'] },
-  wins:       { sql: 'SUM(won)', dir: 'DESC', games: ['outline'] },
-  winrate:    { sql: 'ROUND(100.0 * AVG(won))', dir: 'DESC', min: 5, games: ['outline'] },
-  avgguesses: { sql: 'ROUND(AVG(CASE WHEN won = 1 THEN guesses END), 2)', dir: 'ASC', min: 3, minWins: true, games: ['outline'] },
-  played:     { sql: 'COUNT(*)', dir: 'DESC', games: ['pinpoint', 'snapshot', 'outline', 'timeline', 'oldernewer', 'all'] },
-  streak:     { streak: 'current', games: ['pinpoint', 'snapshot', 'outline', 'timeline', 'oldernewer', 'all'] },
-  longest:    { streak: 'longest', games: ['pinpoint', 'snapshot', 'outline', 'timeline', 'oldernewer', 'all'] }
+  wins:       { sql: 'SUM(won)', dir: 'DESC', games: ['outline', 'compass'] },
+  winrate:    { sql: 'ROUND(100.0 * AVG(won))', dir: 'DESC', min: 5, games: ['outline', 'compass'] },
+  avgguesses: { sql: 'ROUND(AVG(CASE WHEN won = 1 THEN guesses END), 2)', dir: 'ASC', min: 3, minWins: true, games: ['outline', 'compass'] },
+  played:     { sql: 'COUNT(*)', dir: 'DESC', games: ['pinpoint', 'snapshot', 'outline', 'timeline', 'oldernewer', 'compass', 'all'] },
+  streak:     { streak: 'current', games: ['pinpoint', 'snapshot', 'outline', 'timeline', 'oldernewer', 'compass', 'all'] },
+  longest:    { streak: 'longest', games: ['pinpoint', 'snapshot', 'outline', 'timeline', 'oldernewer', 'compass', 'all'] }
 };
 
 /** Competition ranking (1, 2, 2, 4) over rows already sorted best-first. */
@@ -583,13 +596,13 @@ function finish(rows, me) {
 }
 
 async function dailyBoard(db, game, day, me) {
-  const order = game === 'outline' ? 'e.won DESC, e.guesses ASC, e.finished_at ASC' : 'e.score DESC, e.finished_at ASC';
+  const order = GUESS_GAMES[game] ? 'e.won DESC, e.guesses ASC, e.finished_at ASC' : 'e.score DESC, e.finished_at ASC';
   const { results } = await db.prepare(
     `SELECT e.user_id AS userId, u.username, e.score, e.guesses, e.won, e.finished_at AS finishedAt
      FROM leaderboard_entries e JOIN users u ON u.id = e.user_id
      WHERE e.game = ? AND e.day = ? AND e.live = 1 ORDER BY ${order}`).bind(game, day).all();
-  const rows = (results || []).map((r) => Object.assign(r, { value: game === 'outline' ? (r.won ? r.guesses : null) : r.score }));
-  return finish(rank(rows, (a, b) => game === 'outline' ? a.won === b.won && a.guesses === b.guesses : a.score === b.score), me);
+  const rows = (results || []).map((r) => Object.assign(r, { value: GUESS_GAMES[game] ? (r.won ? r.guesses : null) : r.score }));
+  return finish(rank(rows, (a, b) => GUESS_GAMES[game] ? a.won === b.won && a.guesses === b.guesses : a.score === b.score), me);
 }
 
 function streaks(daysSorted, today) {

@@ -17,7 +17,8 @@
   var GAMES = [
     { id: 'snapshot', name: 'Snapshot', max: 50000 },
     { id: 'pinpoint', name: 'Pinpoint', max: 10000 },
-    { id: 'outline', name: 'Outline' },
+    { id: 'outline', name: 'Outline', guesses: 6 },
+    { id: 'compass', name: 'Compass', guesses: 8 },
     { id: 'timeline', name: 'Timeline', max: 1000 },
     { id: 'oldernewer', name: 'Older or Newer', run: 49 },
     { id: 'all', name: 'All games', allTimeOnly: true }
@@ -44,6 +45,7 @@
       { id: 'streak', name: 'Current streak', col: 'Days', note: 'Days in a row, still going.' },
       { id: 'longest', name: 'Longest streak', col: 'Days', note: 'Most days in a row, ever.' }
     ],
+    compass: null,   // same stats as Outline (set below)
     outline: [
       { id: 'wins', name: 'Wins', col: 'Wins' },
       { id: 'winrate', name: 'Win rate', col: 'Win rate', pct: true, note: 'Players with at least 5 dailies.' },
@@ -58,6 +60,8 @@
       { id: 'longest', name: 'Longest streak', col: 'Days', note: 'Most days in a row with at least one daily.' }
     ]
   };
+
+  METRICS.compass = METRICS.outline;
 
   var $ = function (id) { return document.getElementById(id); };
   var fmt = function (n) { return Math.round(n).toLocaleString('en-US'); };
@@ -152,7 +156,8 @@
   /* ------------------------------------------------------------ table */
   function valueText(row) {
     if (state.type === 'daily') {
-      if (state.game === 'outline') return row.won ? row.guesses + '/6' : 'X/6';
+      var gg = gameById(state.game);
+      if (gg.guesses) return (row.won ? row.guesses : 'X') + '/' + gg.guesses;
       return fmt(row.value);
     }
     var m = metricById(state.game, state.metric);
@@ -201,7 +206,7 @@
   function caption() {
     var g = gameById(state.game);
     if (state.type === 'daily') {
-      if (state.game === 'outline') return 'Fewest guesses wins. Ties go to whoever finished first.';
+      if (g.guesses) return 'Fewest guesses wins. Ties go to whoever finished first.';
       if (g.run) return 'Longest run of right calls, out of ' + g.run + '. Ties go to whoever finished first.';
       return 'Out of ' + fmt(g.max) + ' points. Ties go to whoever finished first.';
     }
@@ -261,7 +266,7 @@
     $('lb-table').hidden = false;
 
     var m = state.type === 'alltime' ? metricById(state.game, state.metric) : null;
-    $('lb-col-value').textContent = m ? m.col : (state.game === 'outline' ? 'Guesses' : state.game === 'oldernewer' ? 'Run' : 'Score');
+    $('lb-col-value').textContent = m ? m.col : (gameById(state.game).guesses ? 'Guesses' : state.game === 'oldernewer' ? 'Run' : 'Score');
     $('lb-col-sub').textContent = m ? (m.noSub ? '' : 'Games') : 'Finished';
     $('lb-table').classList.toggle('no-sub', !!(m && m.noSub));
 

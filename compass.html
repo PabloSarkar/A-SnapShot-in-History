@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Compass · The Daily Dose</title>
+  <meta name="description" content="Find the secret country in eight guesses using distance, direction, region and population clues." />
+  <meta name="theme-color" content="#14110f" />
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="preload" href="./assets/fonts/TwemojiCountryFlags.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="stylesheet" href="./css/photo-games.css?v=20261108b" />
+  <link rel="stylesheet" href="./css/compass.css?v=20261108a" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- ============================ HEADER ============================ -->
+    <header class="topbar">
+      <a href="./compass.html" class="brand" aria-label="Compass: back to the game menu">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+          <circle cx="14" cy="14" r="12" fill="none" stroke="#f2ead9" stroke-width="2" />
+          <path d="M14 5l3.2 9H10.8z" fill="#e7a33e" /><path d="M14 23l-3.2-9h6.4z" fill="#f2ead9" opacity=".55" />
+        </svg>
+        <span class="brand-name">Compass</span>
+      </a>
+      <div class="top-stats">
+        <span id="mode-label" class="mode-label" hidden></span>
+        <div class="stat" aria-live="polite">
+          <span class="stat-label">Guess</span>
+          <span class="stat-value"><span id="guess-num">1</span><span class="stat-dim"> of 8</span></span>
+        </div>
+        <button type="button" class="cp-icon-btn" id="units-btn" aria-label="Switch distance units" title="Switch km / miles">km</button>
+        <button type="button" class="cp-icon-btn" id="stats-btn" aria-label="Your statistics" title="Statistics">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" /></svg>
+        </button>
+        <button type="button" class="cp-icon-btn" id="help-btn" aria-label="How to play" title="How to play">?</button>
+      </div>
+    </header>
+
+    <!-- ============================= GAME ============================= -->
+    <main class="cp-main" id="main">
+      <div class="cp-wrap">
+        <form class="cp-form" id="form" autocomplete="off" novalidate>
+          <input class="cp-input" id="input" type="text" placeholder="Type a country…" aria-label="Your guess"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list" spellcheck="false" autocapitalize="off" />
+          <button type="submit" class="primary-btn" id="guess-btn">Guess</button>
+          <ul class="cp-list" id="list" role="listbox" aria-label="Countries" hidden></ul>
+        </form>
+        <p class="cp-error" id="error" role="alert"></p>
+
+        <div class="cp-board" id="board" aria-live="polite">
+          <div class="cp-row cp-head" aria-hidden="true"><span>Country</span><span>Distance</span><span>Direction</span><span>Region</span><span>Population</span></div>
+        </div>
+
+        <p class="cp-legend" aria-hidden="true">
+          <span><i style="background:var(--t-green)"></i>Match</span>
+          <span><i style="background:var(--t-yellow)"></i>Same continent</span>
+          <span><i style="background:var(--t-red)"></i>Different continent</span>
+          <span>⬆ ⬇ Secret country has more / fewer people</span>
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <!-- ============================ MENU ============================= -->
+  <div class="menu" id="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+    <header class="menu-top">
+      <span class="menu-brand">
+        <svg width="40" height="40" viewBox="0 0 28 28" aria-hidden="true">
+          <circle cx="14" cy="14" r="12" fill="none" stroke="#f2ead9" stroke-width="2" />
+          <path d="M14 5l3.2 9H10.8z" fill="#e7a33e" /><path d="M14 23l-3.2-9h6.4z" fill="#f2ead9" opacity=".55" />
+        </svg>
+        <h1 class="menu-title" id="menu-title">Compass</h1>
+      </span>
+      <div class="menu-actions">
+        <a href="./" class="ghost-btn">‹ All games</a>
+        <button type="button" class="ghost-btn" id="menu-stats">Statistics</button>
+        <button type="button" class="ghost-btn" id="howto-open">How to play</button>
+      </div>
+    </header>
+
+    <main class="menu-main">
+      <p class="menu-tagline">One secret country. Eight guesses. Follow the clues.</p>
+      <div class="mode-grid">
+        <button type="button" class="mode-card cp-daily" id="daily-btn">
+          <span class="cp-art" aria-hidden="true">
+            <svg viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="86" fill="none" stroke="rgba(242,234,217,.25)" stroke-width="2" />
+              <circle cx="100" cy="100" r="64" fill="none" stroke="rgba(242,234,217,.12)" stroke-width="2" stroke-dasharray="4 8" />
+              <path d="M100 22l14 78h-28z" fill="#e7a33e" /><path d="M100 178l-14-78h28z" fill="rgba(242,234,217,.5)" />
+              <path d="M22 100l78-10v20z" fill="rgba(242,234,217,.22)" /><path d="M178 100l-78 10V90z" fill="rgba(242,234,217,.22)" />
+              <circle cx="100" cy="100" r="7" fill="#14110f" stroke="#e7a33e" stroke-width="3" />
+            </svg>
+          </span>
+          <span class="mode-text">
+            <span class="mode-name" id="daily-name">Daily</span>
+            <span class="mode-desc" id="daily-desc">Today’s country: the same for everyone</span>
+          </span>
+          <span class="mode-badge" id="daily-badge" hidden></span>
+        </button>
+        <button type="button" class="mode-card cp-practice" id="practice-btn">
+          <span class="cp-art" aria-hidden="true">
+            <svg viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(242,234,217,.22)" stroke-width="2" />
+              <ellipse cx="100" cy="100" rx="36" ry="80" fill="none" stroke="rgba(242,234,217,.16)" stroke-width="2" />
+              <path d="M20 100h160M30 62h140M30 138h140" stroke="rgba(242,234,217,.16)" stroke-width="2" />
+              <path d="M128 52c-14 0-24 10-24 23 0 18 24 41 24 41s24-23 24-41c0-13-10-23-24-23z" fill="#8fb59a" stroke="#14110f" stroke-width="3" />
+              <circle cx="128" cy="75" r="8" fill="#14110f" />
+            </svg>
+          </span>
+          <span class="mode-text">
+            <span class="mode-name">Practice</span>
+            <span class="mode-desc">A random country, as often as you like</span>
+          </span>
+        </button>
+      </div>
+      <p class="menu-status" id="menu-status" aria-live="polite"></p>
+    </main>
+
+    <footer class="menu-foot">
+      <nav><a href="./#archive">Past daily challenges</a><a href="./leaderboard.html?game=compass">Leaderboard</a></nav>
+      <span>Country data: mledoze/countries · World Bank · Flags: Twemoji (CC BY 4.0)</span>
+    </footer>
+  </div>
+
+  <!-- ========================= HOW TO PLAY ========================= -->
+  <div class="overlay" id="howto" role="dialog" aria-modal="true" aria-labelledby="howto-title" hidden>
+    <div class="card">
+      <h2 class="card-title" id="howto-title">How to play</h2>
+      <ol class="how">
+        <li><span><b>Guess</b> any country. You have eight tries to find the secret one.</span></li>
+        <li><span><b>Distance and direction</b> show how far the secret country is from your guess (as the crow flies) and which way to head on a map.</span></li>
+        <li><span><b>Region</b> turns green for the same subregion (e.g. Western Europe), yellow for the same continent, red otherwise.</span></li>
+        <li><span><b>Population</b> turns green within 10%. Otherwise ⬆ means the secret country has more people, ⬇ fewer.</span></li>
+      </ol>
+      <p class="small-print">Every UN member and observer state can be the answer: 195 countries. A new daily country unlocks at your midnight.</p>
+      <button type="button" class="primary-btn" id="howto-close" style="width:100%;margin-top:1.2rem">Got it</button>
+    </div>
+  </div>
+
+  <!-- ======================= END / STATISTICS ======================= -->
+  <div class="overlay" id="end" role="dialog" aria-modal="true" aria-labelledby="end-title" hidden>
+    <div class="card">
+      <p class="field-label" id="end-eyebrow">Daily challenge</p>
+      <h2 class="card-title" id="end-title"></h2>
+      <p class="card-lede" id="end-lede"></p>
+      <div class="cp-answer" id="end-answer"></div>
+      <div class="squares" id="end-grid" style="margin-top:1rem" aria-hidden="true"></div>
+      <div class="cp-stats" id="stats">
+        <div><b id="st-played">0</b><span>Played</span></div>
+        <div><b id="st-win">0</b><span>Win %</span></div>
+        <div><b id="st-streak">0</b><span>Streak</span></div>
+        <div><b id="st-max">0</b><span>Max streak</span></div>
+      </div>
+      <div class="cp-dist" id="dist"></div>
+      <div class="card-actions" id="end-actions">
+        <button type="button" class="primary-btn is-wide" id="share-btn">Share results</button>
+        <a class="secondary-btn is-wide" id="lb-link" href="./leaderboard.html?game=compass">Leaderboard</a>
+        <button type="button" class="secondary-btn" id="again-btn">Practice</button>
+        <button type="button" class="secondary-btn" id="board-btn">View board</button>
+        <button type="button" class="secondary-btn" id="menu-btn">Menu</button>
+      </div>
+      <button type="button" class="secondary-btn" id="stats-close" style="width:100%;margin-top:1.1rem" hidden>Close</button>
+      <p class="card-note" id="end-note" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <canvas class="cp-confetti" id="confetti" hidden></canvas>
+  <noscript><div class="overlay"><div class="card">This game needs JavaScript enabled.</div></div></noscript>
+
+  <script src="./js/compass-countries.js?v=20261108a"></script>
+  <script src="./js/account.js?v=20261108a"></script>
+  <script src="./js/daily-archive.js?v=20261108c"></script>
+  <script src="./js/compass.js?v=20261108a"></script>
+</body>
+</html>
