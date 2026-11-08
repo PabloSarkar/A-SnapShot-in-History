@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Older or Newer · The Daily Dose</title>
+  <meta name="description" content="Was this photograph taken before or after the last one? Keep the streak alive." />
+  <meta name="theme-color" content="#14110f" />
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="./css/photo-games.css?v=20261108a" />
+</head>
+<body>
+  <div class="app" id="app">
+
+    <!-- ============================ HEADER ============================ -->
+    <header class="topbar">
+      <a href="./oldernewer.html" class="brand" aria-label="Older or Newer: back to the game menu">
+        <svg width="30" height="24" viewBox="0 0 30 24" aria-hidden="true">
+          <g fill="none" stroke="#f2ead9" stroke-width="2"><rect x="1.5" y="3" width="10" height="13" rx="1.5" /><rect x="18.5" y="3" width="10" height="13" rx="1.5" /></g>
+          <path d="M12.5 21h5M15 18.5l2.5 2.5-2.5 2.5" fill="none" stroke="#e7a33e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="brand-name">Older <em>or</em> Newer</span>
+      </a>
+      <div class="top-stats" aria-live="polite">
+        <span id="mode-label" class="mode-label" hidden></span>
+        <div class="stat">
+          <span class="stat-label">Streak</span>
+          <span class="stat-value" id="streak">0</span>
+        </div>
+        <div class="stat" id="best-stat">
+          <span class="stat-label" id="best-label">Best</span>
+          <span class="stat-value" id="best">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============================ STAGE ============================ -->
+    <main class="on-stage" id="stage">
+      <section class="on-side on-known" id="known" aria-label="The photo you know">
+        <span class="on-tag">Known</span>
+        <button type="button" class="icon-btn on-zoom" data-side="known" aria-label="View larger">
+          <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="ph"><img alt="" id="known-img" /><span class="ph-broken">This photograph couldn’t be loaded.</span></div>
+        <div class="on-cap">
+          <span class="on-year" id="known-year"></span>
+          <p class="on-desc" id="known-desc"></p>
+          <a class="on-credit" id="known-credit" target="_blank" rel="noopener"></a>
+        </div>
+      </section>
+
+      <div class="on-vs" aria-hidden="true">vs</div>
+
+      <section class="on-side on-next" id="next" aria-label="The next photo">
+        <span class="on-tag">Next</span>
+        <button type="button" class="icon-btn on-zoom" data-side="next" aria-label="View larger">
+          <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="ph"><img alt="" id="next-img" /><span class="ph-broken">This photograph couldn’t be loaded. You can still answer.</span></div>
+        <div class="on-cap">
+          <p class="on-prompt" id="prompt"></p>
+          <div class="on-ask" id="ask">
+            <button type="button" class="secondary-btn" id="older-btn">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M7 4 3 8l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Older
+            </button>
+            <button type="button" class="primary-btn" id="newer-btn">
+              Newer
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div id="reveal" hidden>
+            <span class="on-year" id="next-year"></span>
+            <span class="on-delta" id="next-delta"></span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ========================= CONTROL BAR ========================= -->
+    <footer class="controlbar on-bar">
+      <p class="on-progress" id="progress" aria-live="polite"></p>
+      <p class="on-keys">Keys: <kbd>←</kbd> older · <kbd>→</kbd> newer</p>
+    </footer>
+  </div>
+
+  <!-- ============================ MENU ============================= -->
+  <div class="menu" id="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+    <header class="menu-top">
+      <span class="menu-brand">
+        <svg width="46" height="36" viewBox="0 0 30 24" aria-hidden="true">
+          <g fill="none" stroke="#f2ead9" stroke-width="2"><rect x="1.5" y="3" width="10" height="13" rx="1.5" /><rect x="18.5" y="3" width="10" height="13" rx="1.5" /></g>
+          <path d="M12.5 21h5M15 18.5l2.5 2.5-2.5 2.5" fill="none" stroke="#e7a33e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <h1 class="menu-title" id="menu-title">Older <em>or</em> Newer</h1>
+      </span>
+      <div class="menu-actions">
+        <a href="./" class="ghost-btn">‹ All games</a>
+        <button type="button" class="ghost-btn" id="howto-open">How to play</button>
+      </div>
+    </header>
+
+    <main class="menu-main">
+      <p class="menu-tagline">Taken before or after? One wrong answer ends the run.</p>
+      <div class="mode-grid">
+        <button type="button" class="mode-card" id="daily-btn">
+          <span class="ph"><img alt="" /></span>
+          <span class="mode-text">
+            <span class="mode-name" id="daily-name">Daily</span>
+            <span class="mode-desc" id="daily-desc">Today’s run: the same photos for everyone</span>
+          </span>
+          <span class="mode-badge" id="daily-badge" hidden></span>
+        </button>
+        <button type="button" class="mode-card" id="practice-btn">
+          <span class="ph"><img alt="" /></span>
+          <span class="mode-text">
+            <span class="mode-name">Practice</span>
+            <span class="mode-desc" id="practice-desc">An endless run of random photographs</span>
+          </span>
+        </button>
+      </div>
+      <p class="menu-status" id="menu-status" aria-live="polite"></p>
+    </main>
+
+    <footer class="menu-foot">
+      <nav><a href="./#archive">Past daily challenges</a><a href="./leaderboard.html?game=oldernewer">Leaderboard</a></nav>
+      <span>Photos from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a></span>
+    </footer>
+  </div>
+
+  <!-- ========================= HOW TO PLAY ========================= -->
+  <div class="overlay" id="howto" role="dialog" aria-modal="true" aria-labelledby="howto-title" hidden>
+    <div class="card">
+      <h2 class="card-title" id="howto-title">How to play</h2>
+      <ol class="how">
+        <li><span><b>Look</b> at the known photo and its year.</span></li>
+        <li><span><b>Decide</b> whether the next photo was taken earlier (older) or later (newer).</span></li>
+        <li><span><b>Keep going.</b> Each right answer adds one to your streak; the first wrong one ends the run.</span></li>
+      </ol>
+      <p class="small-print">Two photos in a row are always at least three years apart. The daily run has 49 calls to make, the same for everyone.</p>
+      <button type="button" class="primary-btn" id="howto-close" style="width:100%;margin-top:1.2rem">Got it</button>
+    </div>
+  </div>
+
+  <!-- ============================ END ============================= -->
+  <div class="overlay" id="end" role="dialog" aria-modal="true" aria-labelledby="end-title" hidden>
+    <div class="card card-wide">
+      <p class="field-label" id="end-eyebrow">Daily challenge</p>
+      <h2 class="card-title tabular" id="end-title"><span id="end-score">0</span> <span class="stat-dim" style="font-size:1.4rem" id="end-unit">in a row</span></h2>
+      <p class="card-lede" id="end-verdict"></p>
+      <div class="squares" id="end-squares" style="margin-top:1rem"></div>
+      <table class="summary" id="end-miss-table">
+        <thead><tr><th colspan="2">The one that got away</th><th>Photograph</th><th class="num">Year</th></tr></thead>
+        <tbody id="end-rows"></tbody>
+      </table>
+      <div class="card-actions">
+        <button type="button" class="primary-btn is-wide" id="share-btn">Share result</button>
+        <a class="secondary-btn is-wide" id="lb-link" href="./leaderboard.html?game=oldernewer">Leaderboard</a>
+        <button type="button" class="secondary-btn is-wide" id="again-btn">Practice</button>
+        <button type="button" class="secondary-btn is-wide" id="menu-btn">Menu</button>
+      </div>
+      <p class="card-note" id="end-note" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <!-- ========================== LIGHTBOX ========================== -->
+  <div class="overlay lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photograph" hidden>
+    <button type="button" class="icon-btn lightbox-close" id="lightbox-close" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+    </button>
+    <div class="lightbox-inner">
+      <div class="ph is-contain"><img alt="" id="lightbox-img" /><span class="ph-broken">This photograph couldn’t be loaded.</span></div>
+      <div class="lightbox-cap"><span id="lightbox-title"></span><a id="lightbox-credit" target="_blank" rel="noopener"></a></div>
+    </div>
+  </div>
+
+  <noscript><div class="overlay"><div class="card">This game needs JavaScript enabled.</div></div></noscript>
+
+  <script src="./data/photos/manifest.js?v=20261108a"></script>
+  <script src="./js/account.js?v=20261108a"></script>
+  <script src="./js/daily-archive.js?v=20261108b"></script>
+  <script src="./js/photo-deck.js?v=20261108a"></script>
+  <script src="./js/oldernewer.js?v=20261108a"></script>
+</body>
+</html>

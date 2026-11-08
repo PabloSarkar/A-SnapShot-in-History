@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Timeline · The Daily Dose</title>
+  <meta name="description" content="Put five historical photographs in the order they were taken. Three tries, 1,000 points." />
+  <meta name="theme-color" content="#14110f" />
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="./css/photo-games.css?v=20261108a" />
+</head>
+<body>
+  <div class="app" id="app">
+
+    <!-- ============================ HEADER ============================ -->
+    <header class="topbar">
+      <a href="./timeline.html" class="brand" aria-label="Timeline: back to the game menu">
+        <svg width="30" height="24" viewBox="0 0 30 24" aria-hidden="true">
+          <line x1="1.5" y1="21" x2="28.5" y2="21" stroke="#e7a33e" stroke-width="2" stroke-linecap="round" />
+          <g fill="none" stroke="#f2ead9" stroke-width="2"><rect x="2" y="4" width="7" height="10" rx="1.5" /><rect x="11.5" y="2" width="7" height="12" rx="1.5" /><rect x="21" y="5" width="7" height="9" rx="1.5" /></g>
+        </svg>
+        <span class="brand-name">Timeline</span>
+      </a>
+      <div class="top-stats" aria-live="polite">
+        <span id="mode-label" class="mode-label" hidden></span>
+        <div class="stat">
+          <span class="stat-label">Try</span>
+          <span class="stat-value"><span id="try-num">1</span><span class="stat-dim"> of 3</span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Score</span>
+          <span class="stat-value" id="score">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============================ STAGE ============================ -->
+    <main class="tl-stage" id="stage">
+      <p class="tl-instr" id="instr">Drag the photographs into the order they were taken, oldest first.</p>
+      <div class="tl-axis" aria-hidden="true"><span>Oldest</span><i></i><span>Newest</span></div>
+      <ol class="tl-row" id="row" aria-label="Your order, oldest first"></ol>
+    </main>
+
+    <!-- ========================= CONTROL BAR ========================= -->
+    <footer class="controlbar">
+      <div class="tl-foot">
+        <div class="tl-tries" id="tries" aria-hidden="true"><span class="tl-try"></span><span class="tl-try"></span><span class="tl-try"></span></div>
+        <p class="tl-status" id="status" aria-live="polite"></p>
+      </div>
+      <button type="button" class="primary-btn" id="submit">Check order</button>
+      <button type="button" class="primary-btn" id="show-results" hidden>See results</button>
+    </footer>
+  </div>
+
+  <!-- ============================ MENU ============================= -->
+  <div class="menu" id="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+    <header class="menu-top">
+      <span class="menu-brand">
+        <svg width="46" height="36" viewBox="0 0 30 24" aria-hidden="true">
+          <line x1="1.5" y1="21" x2="28.5" y2="21" stroke="#e7a33e" stroke-width="2" stroke-linecap="round" />
+          <g fill="none" stroke="#f2ead9" stroke-width="2"><rect x="2" y="4" width="7" height="10" rx="1.5" /><rect x="11.5" y="2" width="7" height="12" rx="1.5" /><rect x="21" y="5" width="7" height="9" rx="1.5" /></g>
+        </svg>
+        <h1 class="menu-title" id="menu-title">Timeline</h1>
+      </span>
+      <div class="menu-actions">
+        <a href="./" class="ghost-btn">‹ All games</a>
+        <button type="button" class="ghost-btn" id="howto-open">How to play</button>
+      </div>
+    </header>
+
+    <main class="menu-main">
+      <p class="menu-tagline">Five photographs. Which came first?</p>
+      <div class="mode-grid">
+        <button type="button" class="mode-card" id="daily-btn">
+          <span class="ph"><img alt="" /></span>
+          <span class="mode-text">
+            <span class="mode-name" id="daily-name">Daily</span>
+            <span class="mode-desc" id="daily-desc">Today’s five: the same for everyone</span>
+          </span>
+          <span class="mode-badge" id="daily-badge" hidden></span>
+        </button>
+        <button type="button" class="mode-card" id="practice-btn">
+          <span class="ph"><img alt="" /></span>
+          <span class="mode-text">
+            <span class="mode-name">Practice</span>
+            <span class="mode-desc">Five random photographs, as often as you like</span>
+          </span>
+        </button>
+      </div>
+      <p class="menu-status" id="menu-status" aria-live="polite"></p>
+    </main>
+
+    <footer class="menu-foot">
+      <nav><a href="./#archive">Past daily challenges</a><a href="./leaderboard.html?game=timeline">Leaderboard</a></nav>
+      <span>Photos from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a></span>
+    </footer>
+  </div>
+
+  <!-- ========================= HOW TO PLAY ========================= -->
+  <div class="overlay" id="howto" role="dialog" aria-modal="true" aria-labelledby="howto-title" hidden>
+    <div class="card">
+      <h2 class="card-title" id="howto-title">How to play</h2>
+      <ol class="how">
+        <li><span><b>Order</b> the five photographs from oldest to newest. Drag them, or use the arrow buttons.</span></li>
+        <li><span><b>Check</b> your order. Photos in the right place lock in and show their year.</span></li>
+        <li><span><b>Fix</b> the rest. You have three tries.</span></li>
+      </ol>
+      <p class="small-print">A photo locked on the first try scores 200, on the second 100, on the third 50. A perfect timeline is 1,000. No two photos are within five years of each other.</p>
+      <button type="button" class="primary-btn" id="howto-close" style="width:100%;margin-top:1.2rem">Got it</button>
+    </div>
+  </div>
+
+  <!-- ============================ END ============================= -->
+  <div class="overlay" id="end" role="dialog" aria-modal="true" aria-labelledby="end-title" hidden>
+    <div class="card card-wide">
+      <p class="field-label" id="end-eyebrow">Daily challenge</p>
+      <h2 class="card-title tabular" id="end-title"><span id="end-score">0</span><span class="stat-dim" style="font-size:1.4rem"> / 1,000</span></h2>
+      <p class="card-lede" id="end-verdict"></p>
+      <div class="squares" id="end-squares" style="margin-top:1rem"></div>
+      <table class="summary">
+        <thead><tr><th colspan="2">Correct order</th><th>Photograph</th><th class="num">Points</th></tr></thead>
+        <tbody id="end-rows"></tbody>
+      </table>
+      <div class="card-actions">
+        <button type="button" class="primary-btn is-wide" id="share-btn">Share result</button>
+        <a class="secondary-btn is-wide" id="lb-link" href="./leaderboard.html?game=timeline">Leaderboard</a>
+        <button type="button" class="secondary-btn" id="again-btn">Practice</button>
+        <button type="button" class="secondary-btn" id="board-btn">View photos</button>
+        <button type="button" class="secondary-btn" id="menu-btn">Menu</button>
+      </div>
+      <p class="card-note" id="end-note" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <!-- ========================== LIGHTBOX ========================== -->
+  <div class="overlay lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photograph" hidden>
+    <button type="button" class="icon-btn lightbox-close" id="lightbox-close" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+    </button>
+    <div class="lightbox-inner">
+      <div class="ph is-contain"><img alt="" id="lightbox-img" /><span class="ph-broken">This photograph couldn’t be loaded.</span></div>
+      <div class="lightbox-cap"><span id="lightbox-title"></span><a id="lightbox-credit" target="_blank" rel="noopener"></a></div>
+    </div>
+  </div>
+
+  <noscript><div class="overlay"><div class="card">This game needs JavaScript enabled.</div></div></noscript>
+
+  <script src="./data/photos/manifest.js?v=20261108a"></script>
+  <script src="./js/account.js?v=20261108a"></script>
+  <script src="./js/daily-archive.js?v=20261108b"></script>
+  <script src="./js/photo-deck.js?v=20261108a"></script>
+  <script src="./js/timeline.js?v=20261108a"></script>
+</body>
+</html>

@@ -15,7 +15,10 @@ Static HTML + vanilla JS + Tailwind (CDN) + Leaflet/OpenStreetMap. No build step
 - **`/outline`** (`outline.html`) is the country-silhouette game (see below).
 - **`/leaderboard`** (`leaderboard.html`) holds the daily and all-time leaderboards (see below). It's linked from the hub header and from each game's daily results.
 
-Timeline and Older or Newer show on the hub as "Coming soon" cards. To add a game, copy a `.game-card` block in `index.html`, point its `href` at the game's page and give it a colour in `css/hub.css`.
+- **`/timeline`** (`timeline.html`) puts five photographs in the order they were taken (see below).
+- **`/oldernewer`** (`oldernewer.html`) is a streak game: is the next photograph older or newer? (see below).
+
+To add a game, copy a `.game-card` block in `index.html`, point its `href` at the game's page and give it a colour in `css/hub.css`.
 
 ## Accounts
 
@@ -55,8 +58,9 @@ Stored in the `daily_results` table (one row per user, game and day), via `GET /
 
 | Game | Stats |
 | --- | --- |
-| Snapshot, Pinpoint | Total points · Average score (3+ dailies) · Best score · Games played · Current streak · Longest streak |
+| Snapshot, Pinpoint, Timeline | Total points · Average score (3+ dailies) · Best score · Games played · Current streak · Longest streak |
 | Outline | Wins · Win rate (5+ dailies) · Avg guesses in a win (3+ wins, lower is better) · Games played · Current streak · Longest streak |
+| Older or Newer | Best run · Average run (3+ dailies) · Total correct · Games played · Current streak · Longest streak |
 | All games | Dailies played · Current streak · Longest streak (days with at least one daily) |
 
 **What counts.** Only a **daily challenge finished on its day** counts. Practice games and archive replays never do. "On its day" means the result was finished, and reached the server, while that date was still today somewhere on Earth (UTC+14 to UTC−12). Results played as a guest that day are added when the player signs in. Players see the top 50, plus their own rank if they're further down. **Usernames on leaderboards are public.**
@@ -65,6 +69,8 @@ Stored in the `daily_results` table (one row per user, game and day), via `GET /
 
 - **Outline:** the last guess must really be that day's answer, and there can be no repeated or unknown countries.
 - **Pinpoint:** the five places must be that day's places, with the right multipliers, and the points must add up.
+- **Timeline:** the tries are replayed against that day's five photos; locked photos must stay put and the score is recomputed.
+- **Older or Newer:** the calls are replayed against that day's run; nothing may follow a miss, and the run must end with a miss or the last photo.
 - **Snapshot:** only the range (0–50,000) is checked.
 
 Like any browser game it can't prove a player didn't look the answer up or script their guesses, so treat the boards as friendly competition.
@@ -158,6 +164,17 @@ Outline is at **`/outline`** (`outline.html`). You name the country from its sil
   npm install --no-save world-countries@5 world-atlas@2.0.2 topojson-client@3.1.0 d3-geo@3.1.1
   node scripts/build-outline-data.js
   ```
+
+## Timeline and Older or Newer
+
+Both deal from **Snapshot's photo catalogue** (`data/photos/`), via `js/photo-deck.js`, and share the darkroom look in `css/photo-games.css`. Each has a Daily mode (the same photos for everyone on a date, playable from the archive calendar and synced to accounts) and a Practice mode.
+
+- **Timeline** (`timeline.html`, `js/timeline.js`): five photos, at least five years apart. Drag them (or use the arrow buttons or arrow keys) into order, oldest first, and check. Photos in the right place lock in and show their year. Three tries; a photo locked on try 1/2/3 scores 200/100/50, so 1,000 is perfect.
+- **Older or Newer** (`oldernewer.html`, `js/oldernewer.js`): a known photo with its year, and the next one. Older or newer? Each right call adds one to the streak; the first wrong one ends the run. Consecutive photos are at least three years apart. The daily run has 49 calls; Practice is endless and keeps your best.
+
+**Images:** the games request a right-sized thumbnail from `thumb.wikimedia.org` (500 px cards, 960 px large photos, 1280 px enlarged). Catalogue entries that point at full-size originals on `upload.wikimedia.org` are rewritten to thumbnails too, because Wikimedia often rate-limits hotlinked originals, with the original as a fallback.
+
+**Daily picks** hash the date to choose a shard and an order (`dailyPool`), then take the first photos that fit the spacing rules (`pickTimeline`, `pickSequence`). The leaderboard API repeats these steps to check results, so change both together.
 
 ## Game modes
 
@@ -253,6 +270,10 @@ node scripts/curate-photos.js             # apply it
 index.html        The Daily Dose hub: one card per game, Sign in top right
 signin.html       sign in / create account (username + password)
 leaderboard.html  daily and all-time leaderboards (js/leaderboard.js)
+timeline.html     Timeline photo-ordering game (js/timeline.js)
+oldernewer.html   Older or Newer streak game (js/oldernewer.js)
+js/photo-deck.js  shared photo dealing for Timeline and Older or Newer
+css/photo-games.css  their darkroom styles
 outline.html      Outline country-silhouette game
 js/outline-countries.js  195 countries for Outline (generated)
 assets/outlines/  one SVG silhouette per country (generated)

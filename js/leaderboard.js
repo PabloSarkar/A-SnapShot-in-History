@@ -18,6 +18,8 @@
     { id: 'snapshot', name: 'Snapshot', max: 50000 },
     { id: 'pinpoint', name: 'Pinpoint', max: 10000 },
     { id: 'outline', name: 'Outline' },
+    { id: 'timeline', name: 'Timeline', max: 1000 },
+    { id: 'oldernewer', name: 'Older or Newer', run: 49 },
     { id: 'all', name: 'All games', allTimeOnly: true }
   ];
 
@@ -33,6 +35,15 @@
   var METRICS = {
     snapshot: POINTS,
     pinpoint: POINTS,
+    timeline: POINTS,
+    oldernewer: [
+      { id: 'best', name: 'Best run', col: 'Best' },
+      { id: 'average', name: 'Average run', col: 'Average', dec1: true, note: 'Players with at least 3 dailies.' },
+      { id: 'total', name: 'Total correct', col: 'Correct' },
+      { id: 'played', name: 'Games played', col: 'Played', noSub: true },
+      { id: 'streak', name: 'Current streak', col: 'Days', note: 'Days in a row, still going.' },
+      { id: 'longest', name: 'Longest streak', col: 'Days', note: 'Most days in a row, ever.' }
+    ],
     outline: [
       { id: 'wins', name: 'Wins', col: 'Wins' },
       { id: 'winrate', name: 'Win rate', col: 'Win rate', pct: true, note: 'Players with at least 5 dailies.' },
@@ -147,6 +158,7 @@
     var m = metricById(state.game, state.metric);
     if (m.pct) return fmt(row.value) + '%';
     if (m.dec) return Number(row.value).toFixed(2);
+    if (m.dec1) return Number(row.value).toFixed(1);
     return fmt(row.value);
   }
   function subText(row) {
@@ -190,6 +202,7 @@
     var g = gameById(state.game);
     if (state.type === 'daily') {
       if (state.game === 'outline') return 'Fewest guesses wins. Ties go to whoever finished first.';
+      if (g.run) return 'Longest run of right calls, out of ' + g.run + '. Ties go to whoever finished first.';
       return 'Out of ' + fmt(g.max) + ' points. Ties go to whoever finished first.';
     }
     var m = metricById(state.game, state.metric);
@@ -248,7 +261,7 @@
     $('lb-table').hidden = false;
 
     var m = state.type === 'alltime' ? metricById(state.game, state.metric) : null;
-    $('lb-col-value').textContent = m ? m.col : (state.game === 'outline' ? 'Guesses' : 'Score');
+    $('lb-col-value').textContent = m ? m.col : (state.game === 'outline' ? 'Guesses' : state.game === 'oldernewer' ? 'Run' : 'Score');
     $('lb-col-sub').textContent = m ? (m.noSub ? '' : 'Games') : 'Finished';
     $('lb-table').classList.toggle('no-sub', !!(m && m.noSub));
 

@@ -34,7 +34,9 @@
   var GAMES = [
     { id: 'snapshot', name: 'Snapshot', url: './snapshot.html' },
     { id: 'pinpoint', name: 'Pinpoint', url: './pinpoint.html' },
-    { id: 'outline', name: 'Outline', url: './outline.html' }
+    { id: 'outline', name: 'Outline', url: './outline.html' },
+    { id: 'timeline', name: 'Timeline', url: './timeline.html' },
+    { id: 'oldernewer', name: 'Older or Newer', url: './oldernewer.html' }
   ];
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -104,7 +106,8 @@
   function progressOf(rec) {
     if (!rec || typeof rec !== 'object') return -1;
     if (rec.done) return 1e6;
-    return Array.isArray(rec.results) ? rec.results.length : Array.isArray(rec.guesses) ? rec.guesses.length : 0;
+    var moves = rec.results || rec.guesses || rec.tries || rec.answers;   // Pinpoint, Outline, Timeline, Older or Newer
+    return moves && typeof moves.length === 'number' ? moves.length : 0;
   }
   /** Keep the first finished result, otherwise whichever is further along. */
   function keepBetter(mine, theirs) {

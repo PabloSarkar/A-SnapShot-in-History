@@ -43,7 +43,7 @@ const PBKDF2_ITERATIONS = 100000;
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 const MAX_PROGRESS_BYTES = 20000;
 const MAX_DAILY_BYTES = 8000;
-const DAILY_GAMES = new Set(['snapshot', 'pinpoint', 'outline']);
+const DAILY_GAMES = new Set(['snapshot', 'pinpoint', 'outline', 'timeline', 'oldernewer']);
 const DAILY_LAUNCH = '2026-11-07';
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -292,8 +292,8 @@ async function putProgress(db, request, user) {
 function progressOf(rec) {
   if (!rec || typeof rec !== 'object') return -1;
   if (rec.done) return 1e6;
-  const moves = Array.isArray(rec.results) ? rec.results.length : Array.isArray(rec.guesses) ? rec.guesses.length : 0;
-  return moves;
+  const moves = rec.results || rec.guesses || rec.tries || rec.answers;   // Pinpoint, Outline, Timeline, Older or Newer
+  return moves && typeof moves.length === 'number' ? moves.length : 0;
 }
 /** Which record to keep: the first finished one, otherwise the furthest along. */
 function keepBetter(existing, incoming) {
@@ -413,6 +413,60 @@ async function pinpointTargets(env, request, day) {
 }
 
 /** Turn a finished record into a leaderboard entry, or null if it doesn't check out. */
+
+/* Timeline and Older or Newer deal from the Snapshot photo catalogue, exactly
+   as js/photo-deck.js does: a shard and an order chosen by hashing the date. */
+async function photoShard(env, request, n) {
+  const path = '/data/photos/shard-' + String(n).padStart(3, '0') + '.js';
+  if (gameData[path]) return gameData[path];
+  let list = null;
+  try {
+    const res = await env.ASSETS.fetch(new URL(path, request.url));
+    if (res.ok) {
+      const text = await res.text();
+      const m = /\)\[\d+\]\s*=\s*/.exec(text);
+      if (m) list = JSON.parse(text.slice(m.index + m[0].length).trim().replace(/;\s*$/, ''));
+    }
+  } catch (e) { list = null; }
+  if (!Array.isArray(list)) return null;
+  const clean = list.filter((p) => p && typeof p.id === 'string' && typeof p.image_url === 'string' && p.image_url &&
+    Number.isFinite(p.actual_year) && Math.round(p.actual_year) >= 1900 && Math.round(p.actual_year) <= 2026)
+    .map((p) => ({ id: p.id, year: Math.round(p.actual_year) }));
+  gameData[path] = clean;
+  return clean;
+}
+async function photoDailyPool(env, request, game, day) {
+  const manifest = await loadAsset(env, request, '/data/photos/manifest.js', 'SNAPSHOT_MANIFEST');
+  if (!manifest || !(manifest.shards > 0)) return null;
+  const first = hashStr(game + ':shard:' + day) % manifest.shards;
+  let list = await photoShard(env, request, first);
+  if (!list) return null;
+  if (list.length < 100) list = await photoShard(env, request, (first + 1) % manifest.shards);
+  if (!list) return null;
+  const key = (p) => hashStr(game + ':' + day + ':' + p.id);
+  return list.slice().sort((a, b) => (key(a) - key(b)) || (a.id < b.id ? -1 : 1));
+}
+async function timelinePhotos(env, request, day) {
+  const pool = await photoDailyPool(env, request, 'timeline', day);
+  if (!pool) return null;
+  const out = [];
+  for (const p of pool) {
+    if (out.every((q) => Math.abs(q.year - p.year) >= 5)) out.push(p);
+    if (out.length === 5) break;
+  }
+  return out.length === 5 ? out : null;
+}
+async function olderNewerRun(env, request, day) {
+  const pool = await photoDailyPool(env, request, 'oldernewer', day);
+  if (!pool) return null;
+  const out = [];
+  for (const p of pool) {
+    if (!out.length || Math.abs(p.year - out[out.length - 1].year) >= 3) out.push(p);
+    if (out.length === 50) break;
+  }
+  return out.length >= 10 ? out : null;
+}
+
 async function deriveEntry(env, request, game, day, rec) {
   if (game === 'snapshot') {
     const t = rec.total;
@@ -426,6 +480,44 @@ async function deriveEntry(env, request, game, day, rec) {
     const won = g[g.length - 1] === truth.answer && g.indexOf(truth.answer) === g.length - 1;
     if (!!rec.won !== won || (!won && g.length !== 6)) return null;
     return { score: won ? 7 - g.length : 0, guesses: g.length, won: won ? 1 : 0 };
+  }
+  if (game === 'timeline') {
+    // Replay the tries: a photo locks the first time it's in its right place
+    // (200 / 100 / 50 points on try 1 / 2 / 3), and must then stay there.
+    const tries = rec.tries;
+    if (!Array.isArray(tries) || tries.length < 1 || tries.length > 3) return null;
+    const photos = await timelinePhotos(env, request, day);
+    if (!photos) return null;
+    const answer = photos.slice().sort((a, b) => a.year - b.year).map((p) => p.id);
+    const ids = new Set(answer);
+    const locked = new Map();
+    for (let k = 0; k < tries.length; k++) {
+      const t = tries[k];
+      if (!Array.isArray(t) || t.length !== 5 || new Set(t).size !== 5 || !t.every((id) => ids.has(id))) return null;
+      for (const [id, at] of locked) if (t[answer.indexOf(id)] !== id) return null;
+      t.forEach((id, i) => { if (id === answer[i] && !locked.has(id)) locked.set(id, k); });
+      if (locked.size === 5 && k !== tries.length - 1) return null;   // no tries after solving it
+    }
+    const won = locked.size === 5;
+    if (!won && tries.length !== 3) return null;
+    let score = 0;
+    for (const k of locked.values()) score += [200, 100, 50][k];
+    return { score, guesses: tries.length, won: won ? 1 : 0 };
+  }
+  if (game === 'oldernewer') {
+    // Replay the calls: the run ends at the first wrong one, or at the last photo.
+    const a = rec.answers;
+    if (typeof a !== 'string' || !/^[on]+$/.test(a)) return null;
+    const run = await olderNewerRun(env, request, day);
+    if (!run || a.length > run.length - 1) return null;
+    let score = 0;
+    for (let i = 0; i < a.length; i++) {
+      const right = a[i] === (run[i + 1].year > run[i].year ? 'n' : 'o');
+      if (right) score++;
+      else if (i !== a.length - 1) return null;   // nothing after a miss
+    }
+    if (score === a.length && a.length !== run.length - 1) return null;   // not finished
+    return { score, guesses: null, won: null };
   }
   if (game === 'pinpoint') {
     const r = rec.results;
@@ -468,15 +560,15 @@ async function addLeaderboardEntry(db, env, request, user, game, day, rec, fallb
 const TOP = 50;
 const METRICS = {
   // value expression, HAVING, sort direction, minimum games, which games
-  total:      { sql: 'SUM(score)', dir: 'DESC', games: ['pinpoint', 'snapshot'] },
-  average:    { sql: 'ROUND(AVG(score))', dir: 'DESC', min: 3, games: ['pinpoint', 'snapshot'] },
-  best:       { sql: 'MAX(score)', dir: 'DESC', games: ['pinpoint', 'snapshot'] },
+  total:      { sql: 'SUM(score)', dir: 'DESC', games: ['pinpoint', 'snapshot', 'timeline', 'oldernewer'] },
+  average:    { sql: 'ROUND(AVG(score), 1)', dir: 'DESC', min: 3, games: ['pinpoint', 'snapshot', 'timeline', 'oldernewer'] },
+  best:       { sql: 'MAX(score)', dir: 'DESC', games: ['pinpoint', 'snapshot', 'timeline', 'oldernewer'] },
   wins:       { sql: 'SUM(won)', dir: 'DESC', games: ['outline'] },
   winrate:    { sql: 'ROUND(100.0 * AVG(won))', dir: 'DESC', min: 5, games: ['outline'] },
   avgguesses: { sql: 'ROUND(AVG(CASE WHEN won = 1 THEN guesses END), 2)', dir: 'ASC', min: 3, minWins: true, games: ['outline'] },
-  played:     { sql: 'COUNT(*)', dir: 'DESC', games: ['pinpoint', 'snapshot', 'outline', 'all'] },
-  streak:     { streak: 'current', games: ['pinpoint', 'snapshot', 'outline', 'all'] },
-  longest:    { streak: 'longest', games: ['pinpoint', 'snapshot', 'outline', 'all'] }
+  played:     { sql: 'COUNT(*)', dir: 'DESC', games: ['pinpoint', 'snapshot', 'outline', 'timeline', 'oldernewer', 'all'] },
+  streak:     { streak: 'current', games: ['pinpoint', 'snapshot', 'outline', 'timeline', 'oldernewer', 'all'] },
+  longest:    { streak: 'longest', games: ['pinpoint', 'snapshot', 'outline', 'timeline', 'oldernewer', 'all'] }
 };
 
 /** Competition ranking (1, 2, 2, 4) over rows already sorted best-first. */
